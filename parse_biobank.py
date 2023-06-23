@@ -167,8 +167,6 @@ def parse_sample_ppg():
 
     # wd, m = hp.process(minmax_scale(scipy.signal.detrend(jc.Unit)), sample_rate = 100.0)
     wd, m = hp.process(filtered_ppg[400:], sample_rate = 100.0)
-    #set large figure
-    plt.figure(figsize=(12,4))
 
     #call plotter
     hp.plotter(wd, m)
