@@ -642,7 +642,6 @@ merged = pd.merge(ks_test, ts_test, how='inner', on=["feature", "individual"])
 print(ks_test)
 print(ts_test)
 df = main()
-# Calculate the correlation matrix
 corr_matrix = df.corr()
 corr_matrix["average"] = corr_matrix.mean(axis = 1)
 print(corr_matrix)
