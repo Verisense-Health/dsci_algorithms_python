@@ -638,8 +638,6 @@ alpha = 0.05
 ks_test = ks_test[ks_test.pvalue <= alpha]
 ts_test = ts_test[ts_test.pvalue <= alpha]
 merged = pd.merge(ks_test, ts_test, how='inner', on=["feature", "individual"])
-print(merged)
-
 
 print(ks_test)
 print(ts_test)
