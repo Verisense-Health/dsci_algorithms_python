@@ -13,6 +13,9 @@ import scipy
 sns.set_style("darkgrid")
 import heartpy as hp
 
+# def parse_biobank():
+#     write me a fuc
+
 
 def moving_average(signal, window_size):
     """
@@ -35,7 +38,279 @@ def minmax_scale(x):
 def standard_scale(x):
     return (x - np.nanmean(x)) / np.nanstd(x)
 
+
+def plot_ppg_compare(raw_shimmer_df,
+                     preprocessed_shimmer_df,
+                     raw_jc_df,
+                     preprocessed_jc_df,
+                     ppg_color,
+                     name):
+
+    fig, axs = plt.subplots(2, 1, figsize = (15, 10), sharex = True)
+    axs[0].set_title("Raw PPG")
+    twin = axs[0].twinx()
+    twin.grid(False)
+    axs[0].plot(raw_shimmer_df.etime, raw_shimmer_df.val, alpha = 0.7, label = "Shimmer")
+    twin.plot(raw_jc_df.etime, raw_jc_df.val, alpha = 0.7, label = "JC", color = "C1")
+    axs[0].set_ylabel("Shimmer PPG")
+    twin.set_ylabel("JC PPG")
+
+    axs[1].set_title("Preproc PPG")
+    axs[1].plot(preprocessed_shimmer_df.etime, preprocessed_shimmer_df.val, alpha = 0.7, label = "Shimmer")
+    axs[1].plot(preprocessed_jc_df.etime, preprocessed_jc_df.val, alpha = 0.7, label = "JC")
+    lines, labels = axs[0].get_legend_handles_labels()
+    lines2, labels2 = twin.get_legend_handles_labels()
+    axs[0].legend(lines + lines2, labels + labels2)
+    # axs[0].legend()
+    axs[1].legend()
+
+
+    duration_shimmer = (raw_shimmer_df.iloc[-1].etime - raw_shimmer_df.iloc[0].etime) / 1000
+    duration_jc = (raw_jc_df.iloc[-1].etime - raw_jc_df.iloc[0].etime) / 1000
+
+
+    shimmer_diffs = np.diff(raw_shimmer_df.etime) / 1000
+    missing_shimmer_seconds = np.sum(shimmer_diffs[shimmer_diffs > 1.])
+
+    jc_diffs = np.diff(raw_jc_df.etime) / 1000
+    missing_jc_seconds = np.sum(jc_diffs[jc_diffs > 1.])
+
+    fig.suptitle(f'"{name}" {ppg_color} PPG Comparison\n'
+                 f'Shimmer Duration: {duration_shimmer} seconds\n'
+                 f'JC Duration: {duration_jc} seconds\n'
+                 f'Shimmer Missing Seconds: {missing_shimmer_seconds:.2f} seconds\n'
+                 f'JC Missing Seconds: {missing_jc_seconds:.2f} seconds\n')
+
+    plt.tight_layout()
+    plt.savefig("/Users/lselig/Desktop/verisense/plots/ppg/" + name + "_" + ppg_color + "_ppg_comparison.png", dpi = 300)
+    plt.show()
+
+def ppg_to_hr(ppg_infile,
+              ppg_timename,
+              ppg_valname,
+              ppg_color,
+              ppg_device,
+              plot_signal,
+              plot_heartpy,
+              scaling,
+              bandpass,
+              detrend,
+              remove_outliers,
+              smooth,
+              suppress_plots):
+
+    if(ppg_infile == "/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv"):
+        df = pd.read_csv(ppg_infile, skiprows = 8)
+        df = df[(df.millisecond >= 1686724915024) & (df.millisecond <= 1686724970502)]
+
+    elif(ppg_infile == "/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/shimmerppg1.csv"):
+        df = pd.read_csv(ppg_infile)
+        df = df[(df.System_Timestamp >= 1686724915024) & (df.System_Timestamp <= 1686724970502)]
+    elif(ppg_device == "jc"):
+        df = pd.read_csv(ppg_infile, skiprows = 8)
+    else:
+        df = pd.read_csv(ppg_infile)
+
+    if(ppg_device == "shimmer" and ppg_color == "green"):
+        fs = 128.0
+    elif(ppg_device == "shimmer" and ppg_color == "red"):
+        fs = 128.0
+    elif(ppg_device == "jc" and ppg_color == "green"):
+        fs = 25.0
+    elif(ppg_device == "jc" and ppg_color == "red"):
+        fs = 100.0
+    else:
+        fs = 128.0
+
+    # calculations
+    empirical_sample_rate = (df.shape[0] / ((df.iloc[-1][ppg_timename] - df.iloc[0][ppg_timename]) / 1000))
+
+    # if(remove_outliers):
+    #     percentile_95 = df[ppg_valname].quantile(0.999)
+    #     df.loc[df[ppg_valname] > percentile_95, ppg_valname] = np.nanmedian(df[ppg_valname])
+    #
+    #     percentile_05 = df[ppg_valname].quantile(0.001)
+    #     df.loc[df[ppg_valname] < percentile_05, ppg_valname] = np.nanmedian(df[ppg_valname])
+
+
+    interpolate = False
+    if(interpolate):
+        pass
+        # Convert the 'date' column to datetime type
+        # df['date'] = pd.to_datetime(df[ppg_timename], unit = "ms")
+        # df = df[~df.date.duplicated()]
+        # df = df.set_index('date')
+        #
+        # start_date = df.index.min()
+        # end_date = df.index.max()
+        #
+        # time_increments = 1 / fs
+        #
+        # new_index = pd.date_range(start=start_date, end=end_date, freq=f'{time_increments * 1e9}N')
+        # df = df.reindex(new_index)
+        #
+        # df = df.interpolate(method='polynomial', order=3)
+        # plt.plot(df.index, df[ppg_valname])
+        # plt.show()
+        # a = 1
+
+    # handle scaling
+    if(scaling == "minmax"):
+        ppg_signal = minmax_scale(df[ppg_valname].values)
+    elif(scaling == "standard"):
+        ppg_signal = standard_scale(df[ppg_valname].values)
+    else:
+        ppg_signal = df[ppg_valname].values
+
+    # handle detrending
+    if(detrend):
+        ppg_signal = scipy.signal.detrend(ppg_signal)
+
+    if(bandpass):
+        f1, f2 = 0.5, 10  # Bandpass frequency range (Hz)
+        # Design the bandpass filter
+        order = 4  # Filter order
+        nyquist_freq = 0.5 * fs
+        low_cutoff = f1 / nyquist_freq
+        high_cutoff = f2 / nyquist_freq
+        b, a = scipy.signal.butter(order, [low_cutoff, high_cutoff], btype='bandpass')
+
+        # Apply the bandpass filter to the PPG signal
+        ppg_signal = scipy.signal.lfilter(b, a, ppg_signal)
+
+    # fig, axs = plt.subplots(2, 1, sharex = True)
+    # axs[0].plot(np.diff(ppg_signal))
+    # axs[1].plot(ppg_signal)
+    # plt.show()
+    if (remove_outliers):
+        # diffs = np.diff(ppg_signal)
+        # diffs = list(diffs)
+        # diffs.append(0)
+        # diffs = np.array(diffs)
+
+        # ppg_signal = np.roll(ppg_signal, -1)
+
+        # ppg_signal[np.roll(diffs, -1) > 0.02] = np.nanmedian(ppg_signal)
+        # ppg_signal[np.roll(diffs, -1) < -0.02] = np.nanmedian(ppg_signal)
+
+        percentile_95 =np.nanquantile(ppg_signal, 0.99)
+        ppg_signal[ppg_signal > percentile_95] = np.nanmedian(ppg_signal)
+
+        percentile_05 = np.nanquantile(ppg_signal, 0.01)
+        ppg_signal[ppg_signal < percentile_05] = np.nanmedian(ppg_signal)
+        # plt.plot(ppg_signal)
+        # plt.show()
+
+
+    # handle smoothing
+    if(smooth):
+        window_size = 20
+        ppg_signal = moving_average(ppg_signal, window_size)
+
+
+    if(plot_signal):
+
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(df[ppg_timename], df[ppg_valname], color = "black", alpha = 0.7, label = "Raw")
+        twin = ax.twinx()
+        twin.plot(df[ppg_timename], ppg_signal, color = "red", alpha = 0.7, label = "Preprocessed")
+        twin.grid(False)
+        ax.set_xlabel("Time")
+        ax.set_ylabel("PPG Raw")
+        twin.set_ylabel("PPG Preprocessed")
+
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = twin.get_legend_handles_labels()
+        ax.legend(lines + lines2, labels + labels2)
+        fig.suptitle(f"{ppg_infile}\n{ppg_color} {ppg_device} {np.round(empirical_sample_rate, 3)} Hz\n{scaling} scaling, detrend = {detrend} bandpass = {bandpass}")
+        plt.savefig(f"/Users/lselig/Desktop/verisense/plots/ppg/{ppg_color}_{ppg_device}_{scaling}_{detrend}.png", dpi = 300)
+        if(not suppress_plots):
+            plt.show()
+        else:
+            plt.close()
+
+    if(plot_heartpy):
+        # plt.figure(figsize=(15, 10))
+
+        # wd, m = hp.process_segmentwise(ppg_signal, sample_rate=empirical_sample_rate, segment_width=8, segment_overlap=0.9)
+        #
+        #
+        # fig, axs = plt.subplots(2, 1, figsize = (15, 10), sharex = True)
+        # timestamps = [df.iloc[(x[0] + x[1]) // 2][ppg_timename] for x in m['segment_indices']]
+        # axs[1].plot(timestamps, m["bpm"], marker = ".", label = "heartpy estimate")
+        # jc_hr = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison3/hr3.csv", skiprows = 3)
+        # axs[1].plot(jc_hr["ms"], jc_hr["bpm"], marker = ".", label = "JC watch HR")
+        # axs[1].legend()
+        # axs[1].set_ylabel("HR (bpm)")
+        #
+        # axs[0].plot(df[ppg_timename], df[ppg_valname], color = "black", alpha = 0.7, label = "Raw")
+        # axs[0].set_ylabel("PPG Raw")
+        #
+        # plt.tight_layout()
+        # plt.show()
+
+        wd, m = hp.process(ppg_signal, sample_rate=empirical_sample_rate)
+        hp.plotter(wd, m, moving_average = True)
+        plt.title(f"Removed beats: {wd['removed_beats'].shape[0]}\nHRV: {m['rmssd']:.2f} ms^2\nRespiratory Rate: {m['breathingrate']:.2f} per second")
+        plt.savefig(f"/Users/lselig/Desktop/verisense/plots/ppg/{ppg_color}_{ppg_device}_{scaling}_{detrend}_heartpy.png", dpi = 300)
+        if(not suppress_plots):
+            plt.show()
+        else:
+            plt.close()
+        hp.plot_breathing(wd, m)
+        if(not suppress_plots):
+            plt.show()
+        else:
+            plt.close()
+
+    raw_df = pd.DataFrame({"etime": df[ppg_timename].values, "val": df[ppg_valname].values})
+    preproc_df = pd.DataFrame({"etime": df[ppg_timename].values, "val": ppg_signal})
+
+    return raw_df, preproc_df
+
+# comparison1
+# green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/shimmerppg1.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = False, detrend = True, suppress_plots = True)
+# green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, suppress_plots = True)
+# plot_ppg_compare(green_shimmer_raw, green_shimmer_preproc, green_jc_raw, green_jc_preproc, "green", "comparison1")
+
+# shimmerppg and jc redppg
+# red_shimmer_raw, red_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/shimmerppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="red", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = False, detrend = True, remove_outliers = False, smooth = True, suppress_plots=False)
+# red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/jcredppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = True, suppress_plots = False)
+# plot_ppg_compare(red_shimmer_raw, red_shimmer_preproc, red_jc_raw, red_jc_preproc, "red", "comparison4")
+
+# comparison5
+green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg/shimmer_greenppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = False, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
+green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg/jc_greenppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
+plot_ppg_compare(green_shimmer_raw, green_shimmer_preproc, green_jc_raw, green_jc_preproc, "green", "comparison1")
+
+# red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison3/redppg3.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = True, suppress_plots = False)
+
+# red jc
+# ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison2/redppg2.csv",
+#           ppg_timename="millisecond",
+#           ppg_valname="Unit",
+#           ppg_color="red",
+#           ppg_device="jc",
+#           plot_signal = True,
+#           plot_heartpy = True,
+#           scaling = "minmax",
+#           bandpass = True,
+#           detrend = True)
+
+# # red shimmer
+# ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison2/shimmerppg2.csv",
+#           ppg_timename="System_Timestamp",
+#           ppg_valname="F5437a_PPG_A13",
+#           ppg_color="red",
+#           ppg_device="shimmer",
+#           plot_signal = True,
+#           plot_heartpy = True,
+#           scaling = "minmax",
+#           detrend = True)
+
+
 def parse_sample_ppg():
+
     # SAMPLE 1 green +3986 offset jc
     shimmer = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/shimmerppg1.csv")
     jc = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", skiprows = 8)
@@ -167,7 +442,6 @@ def parse_sample_ppg():
 
     # wd, m = hp.process(minmax_scale(scipy.signal.detrend(jc.Unit)), sample_rate = 100.0)
     wd, m = hp.process(filtered_ppg[400:], sample_rate = 100.0)
-
     #call plotter
     hp.plotter(wd, m)
 
@@ -329,11 +603,9 @@ def parse_survey(survey, subj):
         plt.show()
     return df
 
-
-
 # print(parse_survey("/Users/lselig/Desktop/sago_surveys.csv", "C1001-1003"))
 # print(survey_over_time("/Users/lselig/Desktop/sago_surveys.csv", "C1001-1006"))
-parse_sample_ppg()
+# parse_sample_ppg()
 
 def parse_payload(folder):
 
@@ -626,67 +898,67 @@ def main():
     big_df.to_csv("/Users/lselig/Desktop/0140_shimmer_activity_summary.csv", index = False)
     return big_df
 
-
-
-
-
-
-
-ks_test = pd.read_csv("/Users/lselig/Desktop/all_kstests.csv")
-ts_test = pd.read_csv("/Users/lselig/Desktop/all_ttests.csv")
-alpha = 0.05
-ks_test = ks_test[ks_test.pvalue <= alpha]
-ts_test = ts_test[ts_test.pvalue <= alpha]
-merged = pd.merge(ks_test, ts_test, how='inner', on=["feature", "individual"])
-
-print(ks_test)
-print(ts_test)
-df = main()
-corr_matrix = df.corr()
-corr_matrix["average"] = corr_matrix.mean(axis = 1)
-print(corr_matrix)
-
-# Create a heatmap
-plt.figure(figsize=(8, 6))
-ax = sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=0.5, annot_kws={"fontsize": 8})
-ax.tick_params(axis='x', labelsize=8)
-ax.tick_params(axis='y', labelsize=8)
-
-# Set the title and display the plot
-plt.title('Correlation Matrix\nFor all days for all subjects')
-plt.show()
-weekends = df[(df.weekday == "Saturday") | (df.weekday == "Sunday")]
-weekdays = df[(df.weekday != "Saturday") & (df.weekday != "Sunday")]
-features = ["dur_day_total_IN_min",
-        "dur_day_total_LIG_min",
-        "dur_day_total_MVPA_min",
-        "M5VALUE",
-        "L5VALUE"]
-
-big_ttest, big_kstest = [], []
-for f in features:
-    n_weekdays = weekdays.shape[0]
-    n_weekends = weekends.shape[0]
-    pvalue_ttest = stats.ttest_ind(weekends[f].values, weekdays[f].values).pvalue
-    results_ttest = pd.DataFrame([{"n_weekdays": n_weekdays,
-                                "n_weekends": n_weekends,
-                                "pvalue": pvalue_ttest,
-                                "feature": f}])
-
-    if(weekdays.shape[0] == 0 or weekends.shape[0] == 0):
-        pvalue_ks = np.nan
-    else:
-        pvalue_ks = stats.ks_2samp(weekends[f].values, weekdays[f].values).pvalue
-    results_kstest = pd.DataFrame([{"n_weekdays": n_weekdays,
-                                "n_weekends": n_weekends,
-                                "pvalue": pvalue_ks,
-                                "feature": f}])
-
-    big_ttest.append(results_ttest)
-    big_kstest.append(results_kstest)
-
-print(len(big_ttest), len(big_kstest))
-pd.concat(big_ttest).to_csv("/Users/lselig/Desktop/ttest_population.csv", index = False)
-pd.concat(big_kstest).to_csv("/Users/lselig/Desktop/kstest_population.csv", index = False)
-
-
+#
+#
+#
+#
+#
+#
+# ks_test = pd.read_csv("/Users/lselig/Desktop/all_kstests.csv")
+# ts_test = pd.read_csv("/Users/lselig/Desktop/all_ttests.csv")
+# alpha = 0.05
+# ks_test = ks_test[ks_test.pvalue <= alpha]
+# ts_test = ts_test[ts_test.pvalue <= alpha]
+# merged = pd.merge(ks_test, ts_test, how='inner', on=["feature", "individual"])
+#
+# print(ks_test)
+# print(ts_test)
+# df = main()
+# corr_matrix = df.corr()
+# corr_matrix["average"] = corr_matrix.mean(axis = 1)
+# print(corr_matrix)
+#
+# # Create a heatmap
+# plt.figure(figsize=(8, 6))
+# ax = sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=0.5, annot_kws={"fontsize": 8})
+# ax.tick_params(axis='x', labelsize=8)
+# ax.tick_params(axis='y', labelsize=8)
+#
+# # Set the title and display the plot
+# plt.title('Correlation Matrix\nFor all days for all subjects')
+# plt.show()
+# weekends = df[(df.weekday == "Saturday") | (df.weekday == "Sunday")]
+# weekdays = df[(df.weekday != "Saturday") & (df.weekday != "Sunday")]
+# features = ["dur_day_total_IN_min",
+#         "dur_day_total_LIG_min",
+#         "dur_day_total_MVPA_min",
+#         "M5VALUE",
+#         "L5VALUE"]
+#
+# big_ttest, big_kstest = [], []
+# for f in features:
+#     n_weekdays = weekdays.shape[0]
+#     n_weekends = weekends.shape[0]
+#     pvalue_ttest = stats.ttest_ind(weekends[f].values, weekdays[f].values).pvalue
+#     results_ttest = pd.DataFrame([{"n_weekdays": n_weekdays,
+#                                 "n_weekends": n_weekends,
+#                                 "pvalue": pvalue_ttest,
+#                                 "feature": f}])
+#
+#     if(weekdays.shape[0] == 0 or weekends.shape[0] == 0):
+#         pvalue_ks = np.nan
+#     else:
+#         pvalue_ks = stats.ks_2samp(weekends[f].values, weekdays[f].values).pvalue
+#     results_kstest = pd.DataFrame([{"n_weekdays": n_weekdays,
+#                                 "n_weekends": n_weekends,
+#                                 "pvalue": pvalue_ks,
+#                                 "feature": f}])
+#
+#     big_ttest.append(results_ttest)
+#     big_kstest.append(results_kstest)
+#
+# print(len(big_ttest), len(big_kstest))
+# pd.concat(big_ttest).to_csv("/Users/lselig/Desktop/ttest_population.csv", index = False)
+# pd.concat(big_kstest).to_csv("/Users/lselig/Desktop/kstest_population.csv", index = False)
+#
+#
