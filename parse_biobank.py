@@ -232,22 +232,22 @@ def ppg_to_hr(ppg_infile,
     if(plot_heartpy):
         # plt.figure(figsize=(15, 10))
 
-        # wd, m = hp.process_segmentwise(ppg_signal, sample_rate=empirical_sample_rate, segment_width=8, segment_overlap=0.9)
-        #
-        #
-        # fig, axs = plt.subplots(2, 1, figsize = (15, 10), sharex = True)
-        # timestamps = [df.iloc[(x[0] + x[1]) // 2][ppg_timename] for x in m['segment_indices']]
-        # axs[1].plot(timestamps, m["bpm"], marker = ".", label = "heartpy estimate")
-        # jc_hr = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison3/hr3.csv", skiprows = 3)
-        # axs[1].plot(jc_hr["ms"], jc_hr["bpm"], marker = ".", label = "JC watch HR")
-        # axs[1].legend()
-        # axs[1].set_ylabel("HR (bpm)")
-        #
-        # axs[0].plot(df[ppg_timename], df[ppg_valname], color = "black", alpha = 0.7, label = "Raw")
-        # axs[0].set_ylabel("PPG Raw")
-        #
-        # plt.tight_layout()
-        # plt.show()
+        wd, m = hp.process_segmentwise(ppg_signal, sample_rate=empirical_sample_rate, segment_width=8, segment_overlap=0.9)
+
+
+        fig, axs = plt.subplots(2, 1, figsize = (15, 10), sharex = True)
+        timestamps = [df.iloc[(x[0] + x[1]) // 2][ppg_timename] for x in m['segment_indices']]
+        axs[1].plot(timestamps, m["bpm"], marker = ".", label = "heartpy estimate")
+        jc_hr = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg while in motion/jc_hr.csv", skiprows = 3)
+        axs[1].plot(jc_hr["ms"] - 5*1000, jc_hr["bpm"], marker = ".", label = "JC watch HR")
+        axs[1].legend()
+        axs[1].set_ylabel("HR (bpm)")
+
+        axs[0].plot(df[ppg_timename], df[ppg_valname], color = "black", alpha = 0.7, label = "Raw")
+        axs[0].set_ylabel("PPG Raw")
+
+        plt.tight_layout()
+        plt.show()
 
         wd, m = hp.process(ppg_signal, sample_rate=empirical_sample_rate)
         hp.plotter(wd, m, moving_average = True)
@@ -279,8 +279,8 @@ def ppg_to_hr(ppg_infile,
 # plot_ppg_compare(red_shimmer_raw, red_shimmer_preproc, red_jc_raw, red_jc_preproc, "red", "comparison4")
 
 # comparison5
-green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg/shimmer_greenppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = False, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
-green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg/jc_greenppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
+green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg while in motion/shimmer_greenppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
+green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg while in motion/jc_greenppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
 plot_ppg_compare(green_shimmer_raw, green_shimmer_preproc, green_jc_raw, green_jc_preproc, "green", "comparison1")
 
 # red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison3/redppg3.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = True, suppress_plots = False)
@@ -308,6 +308,8 @@ plot_ppg_compare(green_shimmer_raw, green_shimmer_preproc, green_jc_raw, green_j
 #           scaling = "minmax",
 #           detrend = True)
 
+
+# def plot_hr():
 
 def parse_sample_ppg():
 
