@@ -92,6 +92,7 @@ def ppg_to_hr(ppg_infile,
               ppg_device,
               plot_signal,
               plot_heartpy,
+              plot_customhr,
               scaling,
               bandpass,
               detrend,
@@ -178,10 +179,10 @@ def ppg_to_hr(ppg_infile,
         # Apply the bandpass filter to the PPG signal
         ppg_signal = scipy.signal.lfilter(b, a, ppg_signal)
 
-    # fig, axs = plt.subplots(2, 1, sharex = True)
-    # axs[0].plot(np.diff(ppg_signal))
-    # axs[1].plot(ppg_signal)
-    # plt.show()
+    fig, axs = plt.subplots(2, 1, sharex = True)
+    axs[0].plot(np.diff(df[ppg_timename]))
+    axs[1].plot(ppg_signal)
+    plt.show()
     if (remove_outliers):
         # diffs = np.diff(ppg_signal)
         # diffs = list(diffs)
@@ -204,9 +205,13 @@ def ppg_to_hr(ppg_infile,
 
     # handle smoothing
     if(smooth):
-        window_size = 20
+        window_size = fs / 5
         ppg_signal = moving_average(ppg_signal, window_size)
 
+
+
+    jc_diffs = np.diff(df[ppg_timename]) / 1000
+    missing_jc_seconds = np.sum(jc_diffs[jc_diffs > 1.])
 
     if(plot_signal):
 
@@ -222,7 +227,11 @@ def ppg_to_hr(ppg_infile,
         lines, labels = ax.get_legend_handles_labels()
         lines2, labels2 = twin.get_legend_handles_labels()
         ax.legend(lines + lines2, labels + labels2)
-        fig.suptitle(f"{ppg_infile}\n{ppg_color} {ppg_device} {np.round(empirical_sample_rate, 3)} Hz\n{scaling} scaling, detrend = {detrend} bandpass = {bandpass}")
+        fig.suptitle(f"{ppg_infile}\n{ppg_color} {ppg_device} {np.round(empirical_sample_rate, 3)} Hz"
+                     f"\n{scaling} scaling, detrend = {detrend},bandpass = {bandpass}\n"
+                     f"missing seconds = {missing_jc_seconds}\n"
+                     f"duration = {(np.round(df[ppg_timename].max() - df[ppg_timename].min()) / 1000, 2)[0]} seconds")
+        plt.tight_layout()
         plt.savefig(f"/Users/lselig/Desktop/verisense/plots/ppg/{ppg_color}_{ppg_device}_{scaling}_{detrend}.png", dpi = 300)
         if(not suppress_plots):
             plt.show()
@@ -231,6 +240,8 @@ def ppg_to_hr(ppg_infile,
 
     if(plot_heartpy):
         # plt.figure(figsize=(15, 10))
+
+
 
         wd, m = hp.process_segmentwise(ppg_signal, sample_rate=empirical_sample_rate, segment_width=8, segment_overlap=0.9)
 
@@ -263,232 +274,28 @@ def ppg_to_hr(ppg_infile,
         else:
             plt.close()
 
-    raw_df = pd.DataFrame({"etime": df[ppg_timename].values, "val": df[ppg_valname].values})
-    preproc_df = pd.DataFrame({"etime": df[ppg_timename].values, "val": ppg_signal})
+    if(plot_customhr):
+        # Run the processing pipeline
+        from scipy.signal import find_peaks
 
-    return raw_df, preproc_df
-
-# comparison1
-# green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/shimmerppg1.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = False, detrend = True, suppress_plots = True)
-# green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, suppress_plots = True)
-# plot_ppg_compare(green_shimmer_raw, green_shimmer_preproc, green_jc_raw, green_jc_preproc, "green", "comparison1")
-
-# shimmerppg and jc redppg
-# red_shimmer_raw, red_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/shimmerppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="red", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = False, detrend = True, remove_outliers = False, smooth = True, suppress_plots=False)
-# red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/jcredppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = True, suppress_plots = False)
-# plot_ppg_compare(red_shimmer_raw, red_shimmer_preproc, red_jc_raw, red_jc_preproc, "red", "comparison4")
-
-# comparison5
-green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg while in motion/shimmer_greenppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
-green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg2/jc green ppg and shimmer green ppg while in motion/jc_greenppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers=False, smooth = True, suppress_plots = False)
-plot_ppg_compare(green_shimmer_raw, green_shimmer_preproc, green_jc_raw, green_jc_preproc, "green", "comparison1")
-
-# red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison3/redppg3.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = True, suppress_plots = False)
-
-# red jc
-# ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison2/redppg2.csv",
-#           ppg_timename="millisecond",
-#           ppg_valname="Unit",
-#           ppg_color="red",
-#           ppg_device="jc",
-#           plot_signal = True,
-#           plot_heartpy = True,
-#           scaling = "minmax",
-#           bandpass = True,
-#           detrend = True)
-
-# # red shimmer
-# ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison2/shimmerppg2.csv",
-#           ppg_timename="System_Timestamp",
-#           ppg_valname="F5437a_PPG_A13",
-#           ppg_color="red",
-#           ppg_device="shimmer",
-#           plot_signal = True,
-#           plot_heartpy = True,
-#           scaling = "minmax",
-#           detrend = True)
+        peaks, _ = find_peaks(ppg_signal, distance = fs/2, height = -0.01)
+        plt.plot(ppg_signal, color = "red", label = "red ppg")
+        plt.scatter(peaks, ppg_signal[peaks], marker="x", color = "black", label = "peak")
+        plt.ylabel("Preprocessed PPG")
+        plt.xlabel("Sample")
+        plt.title(f"npeaks = {len(peaks)}\n"
+                  f"duration = {((np.round(df[ppg_timename].max() - df[ppg_timename].min()) / 1000) - 6, 2)[0]:.2f} seconds\n"
+                  f"BPM = {len(peaks) / ((((df[ppg_timename].max() - df[ppg_timename].min()) / 1000) - 6) / 60):.2f}")
+        plt.show()
 
 
-# def plot_hr():
-
-def parse_sample_ppg():
-
-    # SAMPLE 1 green +3986 offset jc
-    shimmer = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/shimmerppg1.csv")
-    jc = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", skiprows = 8)
-    print(jc)
-    # jc['millisecond'] = pd.to_datetime(jc['millisecond'])
-    jc = jc[(jc.millisecond >= 1686724915024) & (jc.millisecond <= 1686724970502)]
-
-    fs = 25.0  # Sample rate (Hz)
-    # duration = 10  # Duration of the signal (seconds)
-    # t = np.linspace(0, duration, int(fs * duration))
-    f1, f2 = 0.5, 10  # Bandpass frequency range (Hz)
-    # ppg_signal = np.sin(2 * np.pi * f1 * t) + 0.5 * np.sin(2 * np.pi * f2 * t)
-    ppg_signal = jc.Unit.values
-
-    # Design the bandpass filter
-    order = 4  # Filter order
-    nyquist_freq = 0.5 * fs
-    low_cutoff = f1 / nyquist_freq
-    high_cutoff = f2 / nyquist_freq
-    b, a = scipy.signal.butter(order, [low_cutoff, high_cutoff], btype='bandpass')
-
-    # Apply the bandpass filter to the PPG signal
-    filtered_ppg = scipy.signal.lfilter(b, a, ppg_signal)
-
-    plt.plot(jc.Unit, label = "orig")
-    plt.plot(filtered_ppg[100:], label = "filt")
-    plt.legend()
-    plt.show()
-    # shimmer = shimmer[(shimmer.System_Timestamp >= 1686724915024) & (shimmer.System_Timestamp <= 1686724970502)]
-    # sample_rate = (shimmer.shape[0] / ((shimmer.iloc[-1].System_Timestamp - shimmer.iloc[0].System_Timestamp) / 1000))
-    # print("SHIMMER sample rate green", sample_rate)
-    # wd, m = hp.process(shimmer.F5437a_PPG_A13.values, sample_rate = sample_rate)
-    #set large figure
-    # plt.figure(figsize=(12,4))
-    # plt.plot(minmax_scale(jc.Unit))
-    # plt.show()
-
-    # wd, m = hp.process(standard_scale(jc.Unit).values, sample_rate = 25.0)
-    wd, m = hp.process(minmax_scale(filtered_ppg[100:]), sample_rate = 25.0)
-    #set large figure
-    plt.figure(figsize=(12,4))
-
-    #call plotter
-    hp.plotter(wd, m)
-    plt.show()
-
-    #display measures computed
-    for measure in m.keys():
-        print('%s: %f' %(measure, m[measure]))
 
 
-    # sns.set_style("darkgrid")
-    # fig, axs = plt.subplots(3, 1, figsize = (15, 9), sharex = True)
-    # fig.suptitle("JC 2025 vs. Shimmer\nGreen LED")
-    # axs[0].set_title("Shimmer")
-    # axs[0].set_ylabel("Green PPG")
-    # axs[0].plot(shimmer.System_Timestamp, shimmer.F5437a_PPG_A13)
-    # # axs[0].plot(shimmer.TimeStamp * 1e6, shimmer.F5437a_PPG_A13)
-    # axs[1].set_ylabel("Green PPG")
-    # axs[1].set_title("JC2025E")
-    # axs[1].plot(jc.millisecond, jc.Unit)
 
-    # axs[2].plot(shimmer.System_Timestamp, minmax_scale(shimmer.F5437a_PPG_A13), label = "0-1 Shimmer Green PPG")
-    # axs[2].plot(jc.millisecond, minmax_scale(jc.Unit), label = "0-1 JC2025E Green PPG")
-    # axs[2].set_title("Shimmer vs JC2025E")
-    # axs[2].set_ylabel("Normalized PPG")
-    # axs[2].legend()
+# green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, plot_customhr=True, scaling = "minmax", bandpass = True, detrend = True, suppress_plots = False, remove_outliers = True, smooth = False)
+# red_shimmer_raw, red_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/shimmerppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="red", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, plot_customhr=False, scaling= "minmax", bandpass = False, detrend = True, remove_outliers = False, smooth = False, suppress_plots=False)
+red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/jcredppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, plot_customhr = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = False, suppress_plots = False)
 
-    # plt.tight_layout()
-    # plt.show()
-
-    # plt.plot(np.diff(shimmer.System_Timestamp))
-    # plt.plot(np.diff(jc.millisecond))
-    # plt.show()
-
-
-    # SAMPLE 2 green +3986 offset jc
-    shimmer = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison2/shimmerppg2.csv")
-    jc = pd.read_csv("/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison2/redppg2.csv", skiprows = 8)
-
-    # sample_rate = (shimmer.shape[0] / ((shimmer.iloc[-1].System_Timestamp - shimmer.iloc[0].System_Timestamp) / 1000))
-    # print()
-    # print("SHIMMER sample rate red", sample_rate)
-
-    # jc = jc[jc.millisecond >= shimmer.System_millisecon]
-    # sample_rate = 146.0
-    # print("SAMPLE RATE", sample_rate)
-
-    # wd, m = hp.process(shimmer.F5437a_PPG_A13.values, sample_rate = sample_rate)
-    #set large figure
-    # plt.figure(figsize=(12,4))
-    # plt.plot(minmax_scale(jc.Unit))
-    # plt.show()
-    plt.close()
-    plt.plot(minmax_scale(jc.Unit), label = "Scaled JC Red")
-    plt.plot(minmax_scale(scipy.signal.detrend(jc.Unit)), label = "Detrended Scaled JC Red")
-    plt.legend()
-    plt.ylabel("Red PPG")
-    plt.title("JC Watch")
-    plt.show()
-
-    fs = 100.0  # Sample rate (Hz)
-    # duration = 10  # Duration of the signal (seconds)
-    # t = np.linspace(0, duration, int(fs * duration))
-    f1, f2 = 0.5, 10  # Bandpass frequency range (Hz)
-    # ppg_signal = np.sin(2 * np.pi * f1 * t) + 0.5 * np.sin(2 * np.pi * f2 * t)
-    ppg_signal = jc.Unit.values
-    plt.close()
-    plt.plot(ppg_signal, label = "orig")
-    window_size = 10
-    ppg_signal = moving_average(ppg_signal, window_size)
-    # ppg_signal = ppg_signal[20:-20]
-    plt.plot(ppg_signal, label = "smoothed")
-    plt.legend()
-    plt.title("smoothed")
-    plt.show()
-
-    # Design the bandpass filter
-    order = 4  # Filter order
-    nyquist_freq = 0.5 * fs
-    low_cutoff = f1 / nyquist_freq
-    high_cutoff = f2 / nyquist_freq
-    b, a = scipy.signal.butter(order, [low_cutoff, high_cutoff], btype='bandpass')
-
-    # Apply the bandpass filter to the PPG signal
-    filtered_ppg = scipy.signal.lfilter(b, a, ppg_signal)
-    plt.plot(filtered_ppg)
-    plt.show()
-
-    # wd, m = hp.process(minmax_scale(scipy.signal.detrend(jc.Unit)), sample_rate = 100.0)
-    wd, m = hp.process(filtered_ppg[400:], sample_rate = 100.0)
-    #call plotter
-    hp.plotter(wd, m)
-
-
-    # print(jc.shape[0], (jc.iloc[-1].millisecond - jc.iloc[0].millisecond))
-
-    # wd, m = hp.process(jc.Unit.values, sample_rate = 100.0)
-    #set large figure
-    # plt.figure(figsize=(12,4))
-
-    # #call plotter
-    # hp.plotter(wd, m)
-
-    # #display measures computed
-    # for measure in m.keys():
-    #     print('%s: %f' %(measure, m[measure]))
-
-
-    # print("JC RED SAMPLING RATE", jc.shape[0] / (jc.iloc[-1].millisecond / jc.iloc[0].millisecond) / 100)
-
-    sns.set_style("darkgrid")
-    fig, axs = plt.subplots(3, 1, figsize = (15, 9), sharex = True)
-    print(jc)
-
-    fig.suptitle("JC 2025 vs. Shimmer\nRed LED")
-    axs[0].set_title("Shimmer")
-    axs[0].set_ylabel("Red PPG")
-    axs[0].plot(shimmer.System_Timestamp, shimmer.F5437a_PPG_A13)
-    # axs[0].plot(shimmer.TimeStamp * 1e6, shimmer.F5437a_PPG_A13)
-    axs[1].set_ylabel("Red PPG")
-    axs[1].set_title("JC2025E")
-    axs[1].plot(jc.millisecond, jc.Unit)
-
-    axs[2].plot(shimmer.System_Timestamp, minmax_scale(shimmer.F5437a_PPG_A13), label = "0-1 Shimmer Red PPG")
-    axs[2].plot(jc.millisecond, minmax_scale(jc.Unit), label = "0-1 JC2025E Red PPG")
-    axs[2].set_title("Shimmer vs JC2025E")
-    axs[2].set_ylabel("Normalized PPG")
-    axs[2].legend()
-
-    plt.tight_layout()
-    plt.show()
-
-    plt.plot(np.diff(shimmer.System_Timestamp))
-    plt.plot(np.diff(jc.millisecond))
-    plt.show()
 
 
 def find_question(colname):
@@ -713,10 +520,6 @@ def split_colname(c):
     c = "".join(c)
     return c
 
-
-
-
-
 def do_pca(data, subj):
     print(data)
     data = data.drop(columns = ["id", "yyyy-MM-dd", "weekday", "date", "L5TIME", "M5TIME", "my_datetime"])
@@ -891,76 +694,7 @@ def main():
     big_kstest.sort_values(by = ["pvalue"])
     big_kstest.to_csv("/Users/lselig/Desktop/all_kstests.csv", index = False)
 
-    # big_df = pd.concat(dfs)
-
-
-
     print(f"N days of data: {total_days}")
     big_df = pd.concat(dfs)
     big_df.to_csv("/Users/lselig/Desktop/0140_shimmer_activity_summary.csv", index = False)
     return big_df
-
-#
-#
-#
-#
-#
-#
-# ks_test = pd.read_csv("/Users/lselig/Desktop/all_kstests.csv")
-# ts_test = pd.read_csv("/Users/lselig/Desktop/all_ttests.csv")
-# alpha = 0.05
-# ks_test = ks_test[ks_test.pvalue <= alpha]
-# ts_test = ts_test[ts_test.pvalue <= alpha]
-# merged = pd.merge(ks_test, ts_test, how='inner', on=["feature", "individual"])
-#
-# print(ks_test)
-# print(ts_test)
-# df = main()
-# corr_matrix = df.corr()
-# corr_matrix["average"] = corr_matrix.mean(axis = 1)
-# print(corr_matrix)
-#
-# # Create a heatmap
-# plt.figure(figsize=(8, 6))
-# ax = sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', linewidths=0.5, annot_kws={"fontsize": 8})
-# ax.tick_params(axis='x', labelsize=8)
-# ax.tick_params(axis='y', labelsize=8)
-#
-# # Set the title and display the plot
-# plt.title('Correlation Matrix\nFor all days for all subjects')
-# plt.show()
-# weekends = df[(df.weekday == "Saturday") | (df.weekday == "Sunday")]
-# weekdays = df[(df.weekday != "Saturday") & (df.weekday != "Sunday")]
-# features = ["dur_day_total_IN_min",
-#         "dur_day_total_LIG_min",
-#         "dur_day_total_MVPA_min",
-#         "M5VALUE",
-#         "L5VALUE"]
-#
-# big_ttest, big_kstest = [], []
-# for f in features:
-#     n_weekdays = weekdays.shape[0]
-#     n_weekends = weekends.shape[0]
-#     pvalue_ttest = stats.ttest_ind(weekends[f].values, weekdays[f].values).pvalue
-#     results_ttest = pd.DataFrame([{"n_weekdays": n_weekdays,
-#                                 "n_weekends": n_weekends,
-#                                 "pvalue": pvalue_ttest,
-#                                 "feature": f}])
-#
-#     if(weekdays.shape[0] == 0 or weekends.shape[0] == 0):
-#         pvalue_ks = np.nan
-#     else:
-#         pvalue_ks = stats.ks_2samp(weekends[f].values, weekdays[f].values).pvalue
-#     results_kstest = pd.DataFrame([{"n_weekdays": n_weekdays,
-#                                 "n_weekends": n_weekends,
-#                                 "pvalue": pvalue_ks,
-#                                 "feature": f}])
-#
-#     big_ttest.append(results_ttest)
-#     big_kstest.append(results_kstest)
-#
-# print(len(big_ttest), len(big_kstest))
-# pd.concat(big_ttest).to_csv("/Users/lselig/Desktop/ttest_population.csv", index = False)
-# pd.concat(big_kstest).to_csv("/Users/lselig/Desktop/kstest_population.csv", index = False)
-#
-#
