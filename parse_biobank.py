@@ -93,6 +93,9 @@ def ppg_to_hr(ppg_infile,
               plot_signal,
               plot_heartpy,
               plot_customhr,
+              plot_neurokit,
+              plot_biosppy,
+              plot_pyhrv,
               scaling,
               bandpass,
               detrend,
@@ -168,7 +171,9 @@ def ppg_to_hr(ppg_infile,
         ppg_signal = scipy.signal.detrend(ppg_signal)
 
     if(bandpass):
-        f1, f2 = 0.5, 10  # Bandpass frequency range (Hz)
+        f1, f2 = 0.2, 5.0  # Bandpass frequency range (Hz)
+        # f1, f2 = 0.2, 0.5  # Bandpass frequency range (Hz)
+        # Design the bandpass filter
         # Design the bandpass filter
         order = 4  # Filter order
         nyquist_freq = 0.5 * fs
@@ -238,6 +243,52 @@ def ppg_to_hr(ppg_infile,
         else:
             plt.close()
 
+    if (plot_pyhrv):
+        # Run the processing pipeline
+        from scipy.signal import find_peaks
+
+        peaks, _ = find_peaks(ppg_signal, distance=fs / 4, height=0.000)
+        plt.plot(ppg_signal, color=ppg_color, label="red ppg")
+        plt.scatter(peaks, ppg_signal[peaks], marker="x", color="black", label="peak")
+        plt.ylabel("Preprocessed PPG")
+        plt.xlabel("Sample")
+        plt.title(f"npeaks = {len(peaks)}\n"
+                  f"duration = {((np.round(df[ppg_timename].max() - df[ppg_timename].min()) / 1000) - 6, 2)[0]:.2f} seconds\n"
+                  f"BPM = {len(peaks) / ((((df[ppg_timename].max() - df[ppg_timename].min()) / 1000) - 6) / 60):.2f}")
+        plt.show()
+
+    if (plot_biosppy):
+        from biosppy.signals import ppg
+        out = ppg.ppg(ppg_signal, sampling_rate=fs, show=True)
+        heart_rate = out["heart_rate"]
+
+
+    if(plot_neurokit):
+        import neurokit2 as nk
+
+        # Load or generate your PPG signal (replace with your own code)
+        # ppg_signal = load_ppg_signal()
+
+        # Process the PPG signal using NeuroKit
+        processed_signal = nk.ppg_process(ppg_signal, sampling_rate=fs)  # Replace with your actual sampling rate
+
+        # Get heart rate from processed signal
+        peaks = processed_signal[1]["PPG_Peaks"]
+        ppg_signal_clean = processed_signal[0]["PPG_Clean"].values
+        plt.plot(ppg_signal_clean, color=ppg_color, label=f"{ppg_color} ppg")
+        plt.scatter(peaks, ppg_signal_clean[peaks], marker="x", color="black", label="peak")
+        plt.ylabel("Preprocessed PPG")
+        plt.xlabel("Sample")
+        plt.title(f"neurokit2\n"
+                  f"npeaks = {len(peaks)}\n"
+                  f"duration = {((np.round(df[ppg_timename].max() - df[ppg_timename].min()) / 1000) - 6, 2)[0]:.2f} seconds\n"
+                  f"BPM = {len(peaks) / ((((df[ppg_timename].max() - df[ppg_timename].min()) / 1000) - 6) / 60):.2f}")
+        # heart_rate = processed_signal["HRV"]["Heart_Rate"]
+
+        # print("Heart Rate: {:.2f} BPM".format(heart_rate))
+        plt.show()
+
+
     if(plot_heartpy):
         # plt.figure(figsize=(15, 10))
 
@@ -278,8 +329,8 @@ def ppg_to_hr(ppg_infile,
         # Run the processing pipeline
         from scipy.signal import find_peaks
 
-        peaks, _ = find_peaks(ppg_signal, distance = fs/2, height = -0.01)
-        plt.plot(ppg_signal, color = "red", label = "red ppg")
+        peaks, _ = find_peaks(ppg_signal, distance = fs/3, height = [0.005, 0.5])
+        plt.plot(ppg_signal, color=ppg_color, label=f"{ppg_color} ppg")
         plt.scatter(peaks, ppg_signal[peaks], marker="x", color = "black", label = "peak")
         plt.ylabel("Preprocessed PPG")
         plt.xlabel("Sample")
@@ -292,9 +343,12 @@ def ppg_to_hr(ppg_infile,
 
 
 
-# green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = True, plot_customhr=True, scaling = "minmax", bandpass = True, detrend = True, suppress_plots = False, remove_outliers = True, smooth = False)
-# red_shimmer_raw, red_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/shimmerppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="red", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, plot_customhr=False, scaling= "minmax", bandpass = False, detrend = True, remove_outliers = False, smooth = False, suppress_plots=False)
-red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/jcredppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = True, plot_customhr = True, scaling = "minmax", bandpass = True, detrend = True, remove_outliers = True, smooth = False, suppress_plots = False)
+
+
+# green_shimmer_raw, green_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/shimmerppg1.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="green", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, plot_customhr=False, plot_neurokit = False, plot_biosppy = False, plot_pyhrv = False, scaling= "minmax", bandpass = False, detrend = True, remove_outliers = False, smooth = False, suppress_plots=False)
+green_jc_raw, green_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/comparison1/greenppg1.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="green", ppg_device="jc", plot_signal = True, plot_heartpy = False, plot_customhr = True, plot_neurokit = False, plot_biosppy = False, plot_pyhrv = False, scaling = "minmax", bandpass = True, detrend = False, remove_outliers = False, smooth = False, suppress_plots = False)
+# red_shimmer_raw, red_shimmer_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/shimmerppg.csv", ppg_timename="System_Timestamp", ppg_valname="F5437a_PPG_A13", ppg_color="red", ppg_device="shimmer", plot_signal = True, plot_heartpy = True, plot_customhr=False, plot_neurokit = False, plot_biosppy = False, plot_pyhrv = False, scaling= "minmax", bandpass = False, detrend = True, remove_outliers = False, smooth = False, suppress_plots=False)
+# red_jc_raw, red_jc_preproc = ppg_to_hr(ppg_infile="/Users/lselig/Desktop/verisense/data/ppg/ppg1/shimmerppg and jc redppg/jcredppg.csv", ppg_timename="millisecond", ppg_valname="Unit", ppg_color="red", ppg_device="jc", plot_signal = True, plot_heartpy = False, plot_customhr = True, plot_neurokit = False, plot_biosppy = False, plot_pyhrv = False, scaling = "minmax", bandpass = True, detrend = False, remove_outliers = True, smooth = False, suppress_plots = False)
 
 
 
