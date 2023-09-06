@@ -1,4 +1,5 @@
 from download_2025E_data import download_signal, combine_signal
+import glob
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -8,7 +9,9 @@ sns.set_style("darkgrid")
 
 BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
 USER = "LS2025E"
+# USER = "GG2025E"
 DEVICE = "210202054E02"
+# DEVICE = "210202054DFB"
 SIGNALS = ["Accel"]
 COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
 Path(COMBINED_OUT_PATH).mkdir(parents=True, exist_ok=True)
@@ -104,7 +107,7 @@ def main():
     for signal in SIGNALS:
         download_signal(BUCKET, USER, DEVICE, signal)
 
-    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = True)
+    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False)
     axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/acc_range_test/0901_day_axivity.csv")
     start = 1693544487
     compare_mag(USER,
