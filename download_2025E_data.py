@@ -5,6 +5,8 @@ from alive_progress import alive_bar
 import seaborn as sns
 import boto3, glob
 from pathlib import Path
+from datetime import datetime
+import pytz
 
 sns.set_style("darkgrid")
 AWS_ACCESS_KEY = "AKIAR2C2O5V35DS42JAQ"
@@ -82,14 +84,17 @@ def parse_2025e(infile, signal):
 def download_signal(bucket,
                     user,
                     device,
-                    signal):
+                    signal,
+                    after):
 
     session = boto3.Session(
         aws_access_key_id=AWS_ACCESS_KEY,
         aws_secret_access_key=AWS_SECRET_KEY)
 
     # List objects in the bucket that contain the specified substring
-    objects_with_substring = wr.s3.list_objects(path=f"s3://{bucket}/1/{user}/{device}/ParsedFiles/", suffix=f"{signal}.csv", boto3_session=session)
+    objects_with_substring = wr.s3.list_objects(path=f"s3://{bucket}/1/{user}/{device}/ParsedFiles/", suffix=f"{signal}.csv",
+                                                boto3_session=session,
+                                                last_modified_begin = datetime.strptime(after, "%Y-%m-%d").astimezone(pytz.timezone("US/Central")))
     for obj in objects_with_substring:
         print("Object Key:", obj)
         saveloc = Path(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}")
@@ -108,15 +113,24 @@ def download_signal(bucket,
 def parse_verisense_direct_hr(f, signal):
     df = pd.read_csv(f)
     return df
-def combine_signal(user, device, signal, outfile, use_cache):
+def combine_signal(user, device, signal, outfile, use_cache, after):
+    after = datetime.strptime(after, "%Y-%m-%d")
     if(use_cache):
         return pd.read_csv(outfile)
     # files = Path(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}").glob("*.csv")
     files = glob.glob(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}/*.csv")
     dfs = []
     print(f"Combining {user}_{device}_{signal}")
-    with alive_bar(len(list(files)), force_tty = True) as bar:
-        for f in files:
+    files_subset = []
+    for f in files:
+        file_date = datetime.strptime(f.split("/")[-1].split("_")[0], "%y%m%d")
+        if(file_date < after):
+            print("Skipping", f, "because it is before", after)
+            continue
+        else:
+            files_subset.append(f)
+    with alive_bar(len(list(files_subset)), force_tty = True) as bar:
+        for f in files_subset:
             if("HeartRate" not in signal):
                 dfs.append(parse_2025e(f, signal))
             else:

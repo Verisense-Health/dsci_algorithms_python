@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from parse_third_party import parse_axivity
 sns.set_style("darkgrid")
 
 BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
@@ -40,13 +41,7 @@ def baseline_noise_compare(user, device, accel, axivity_acc, start, end, signal)
     sns.kdeplot(axivity_acc[signal].values, color="red", ax=axs[1], label="Axivity", fill=True)
     plt.show()
 
-def parse_axivity(infile):
-    df = pd.read_csv(infile, skiprows=4)
-    df.columns = ["etime", "x", "y", "z"]
-    df["mag"] = np.sqrt(df.x ** 2 + df.y ** 2 + df.z ** 2)
-    # df["etime"] = df["etime"] / 1000
-    df = df.sort_values(by="etime")
-    return df
+
 def compare_mag(user, device, accel, axivity_acc, start, end, do_hist = False, do_xyz = False, do_resolution = True, verisense_offset = 0):
     accel = accel[accel.etime.between(start, end)]
     accel["etime"] = accel["etime"] + verisense_offset
@@ -103,12 +98,31 @@ def compare_mag(user, device, accel, axivity_acc, start, end, do_hist = False, d
         a = 1
 
 
-def main():
-    for signal in SIGNALS:
-        download_signal(BUCKET, USER, DEVICE, signal)
+def combine_axivity(infolder, outfolder):
+    dfs = []
+    for file in glob.glob(infolder + "/*.csv"):
+        print(f"Parsing {file}")
+        df = parse_axivity(file)
+        dfs.append(df)
 
-    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False)
-    axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/acc_range_test/0901_day_axivity.csv")
+    print(f"Concatenating {len(dfs)} axivity files")
+    df = pd.concat(dfs)
+    df = df.sort_values(by = "etime")
+    df = df.drop_duplicates()
+
+    return df
+
+
+
+def main():
+    axivity_in_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/axivity"
+    combined_axivity_out_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity"
+    for signal in SIGNALS:
+        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
+
+    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False, after = "2023-09-01")
+    axivity_acc = combine_axivity(axivity_in_folder, combined_axivity_out_folder)
+    # axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/acc_range_test/0901_day_axivity.csv")
     start = 1693544487
     compare_mag(USER,
                 DEVICE,

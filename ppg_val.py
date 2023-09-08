@@ -9,6 +9,8 @@ from scipy.signal import find_peaks
 import neurokit2 as nk
 import scipy
 from scipy.stats import linregress
+from dsci_tools import my_minmax
+from parse_third_party import parse_polar
 sns.set_style("darkgrid")
 
 BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
@@ -19,10 +21,13 @@ COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_p
 
 Path(COMBINED_OUT_PATH).mkdir(parents=True, exist_ok=True)
 
+
 def df_to_mat(verisense_green_ppg, outname):
     ppg = verisense_green_ppg.green.values
-    processed_signal, info = nk.ppg_process(ppg, sampling_rate=25.0)  # Replace with your actual sampling rate
-    ppg = processed_signal["PPG_Clean"].values
+    ppg = my_minmax(ppg)
+    etime = np.linspace(verisense_green_ppg.iloc[0].etime, verisense_green_ppg.iloc[-1].etime, num = len(ppg))
+    # processed_signal, info = nk.ppg_process(ppg, sampling_rate=25.0)  # Replace with your actual sampling rate
+    # ppg = processed_signal["PPG_Clean"].values
     print("shape", ppg.shape)
     print("writing")
     df = pd.DataFrame({"val": ppg})
@@ -31,7 +36,10 @@ def df_to_mat(verisense_green_ppg, outname):
     outfile = f'/Users/lselig/Desktop/verisense/codebase/PhysioNet-Cardiovascular-Signal-Toolbox/Tools/Sleep_PPG_transfer_learning/{outname}.mat'
     scipy.io.savemat(outfile, data_dict)
     print(f"Wrote file to {outfile} ")
-    plt.plot(df.val)
+    plt.plot(pd.to_datetime(etime, unit = 's'), df.val)
+    plt.title("Lucas Sleep 09/06\n"
+              "Duration: {:.2f} hours".format((etime[-1] - etime[0]) / 3600))
+    plt.ylabel("Green PPG")
     plt.show()
     return
 
@@ -56,20 +64,6 @@ def calc_sqi(ppg_df, color, window, stride):
         anchors.append(end)
     return pd.DataFrame({"etime": anchors, "sqi_std": sqi_std, "sqi_slope": sqi_slope, "sqi_range": data_range})
 
-def parse_polar(polar_path):
-    df = pd.read_csv(polar_path)
-    date = df.iloc[0]["Date"]
-    time = df.iloc[0]["Start time"]
-    from datetime import datetime
-
-    mystr = date + " " + time
-    start = int(datetime.strptime(mystr, "%d-%m-%Y %H:%M:%S").timestamp()) - 3600 * 5
-    df = df[2:]
-    df["etime"] = range(start, start + len(df))
-    df["hr"] = [float(x) for x in df["Date"]]
-    df = df[["etime", "hr"]]
-    return df
-
 def parse_shimmer_ppg(shimmer_path):
     df = pd.read_csv(shimmer_path, skiprows = 2)
     df["etime"] = (df["ms"] / 1000) - 3600 * 5
@@ -85,6 +79,7 @@ def parse_verisense_direct_hr(f, signal):
     return df
 def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_valname, ppg_timename, device):
     ppg_signal = df[[ppg_valname]].values.flatten()
+    print("Calculating SQI")
     sqi = calc_sqi(df, ppg_color, window = 30, stride = 1)
     fig, axs = plt.subplots(4, 1, figsize = (15, 9), sharex = True)
     axs[0].plot(df.etime.values, ppg_signal, label = "raw", color = "black")
@@ -188,7 +183,23 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
               f"duration = {(np.round(df[ppg_timename].max() - df[ppg_timename].min()), 2)[0]:.2f} seconds\n"
               f"BPM = {len(peaks_custom) / (((df[ppg_timename].max() - df[ppg_timename].min())) / 60):.2f}")
     plt.show()
-    return ppg_clean, peaks_custom, ppg_hr
+    return ppg_clean, peaks_custom, ppg_hr, sqi
+
+def calc_hr_by_window(df, peaks, window, stride):
+    bpms, anchors = [], []
+    start = df.iloc[0].etime + window
+    while (start < df.iloc[-1].etime):
+        end = start + window
+        peak_timings = df.etime.values[peaks]
+        npeaks = np.where((peak_timings > start) & (peak_timings <= end))
+        bpm = len(npeaks[0]) / (window / 60)
+        anchor = end
+
+        bpms.append(bpm)
+        anchors.append(anchor)
+        start += stride
+    ret = pd.DataFrame({"etime": anchors, "bpms": bpms})
+    return ret
 def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title, shimmer_offset, verisense_ylim, shimmer_ylim, xlim, do_buffer):
     polar_df = parse_polar(polar_path)
     shimmer_df = parse_shimmer_ppg(shimmer_path)
@@ -219,7 +230,7 @@ def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title,
     # plt.show()
 
 
-    v_signal, v_peaks, v_hr = calc_hr(verisense_df,
+    v_signal, v_peaks, v_hr, v_sqi = calc_hr(verisense_df,
                                 fs=25.0,
                                 do_bandpass=True,
                                 do_smoothing=False,
@@ -228,7 +239,7 @@ def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title,
                                 ppg_timename="etime",
                                 device="Verisense")
 
-    s_signal, s_peaks, s_hr = calc_hr(shimmer_df,
+    s_signal, s_peaks, s_hr, s_sqi = calc_hr(shimmer_df,
                                 fs=100.0,
                                 do_bandpass=True,
                                 do_smoothing=False,
@@ -389,7 +400,7 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     if(ppg_channel == "red"):
         fs = 100.0
 
-    v_signal, v_peaks, v_hr = calc_hr(verisense_ppg_df,
+    v_signal, v_peaks, v_hr, v_sqi = calc_hr(verisense_ppg_df,
                                 fs=fs,
                                 do_bandpass=True,
                                 do_smoothing=True,
@@ -510,7 +521,45 @@ def main():
     start = 1693956331
     end = 1693986833
     verisense_green_ppg = verisense_green_ppg[verisense_green_ppg.etime.between(start, end)]
-    df_to_mat(verisense_green_ppg, outname = "lucas_sleep_0906")
+
+    # sqi = calc_sqi(verisense_green_ppg, "green", window = 30, stride = 1)
+    tmp_signal, tmp_peaks, tmp_hr, tmp_sqi = calc_hr(verisense_green_ppg,
+            25.0,
+            do_bandpass=False,
+            do_smoothing = False,
+            do_median_filter = False,
+            ppg_color="green",
+            ppg_valname="green",
+            ppg_timename="etime",
+            device="Verisense"
+            )
+
+    hr_by_window = calc_hr_by_window(verisense_green_ppg, tmp_peaks, window = 30, stride = 1)
+    hr_by_window = pd.merge(hr_by_window, tmp_sqi, on = ["etime"])
+    hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
+    pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
+    average_hr = np.nanmean(hr_by_window.bpms)
+    fig, axs = plt.subplots(2, 1, figsize = (15, 9), sharex = True)
+    threshold =np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range)
+    for row in tmp_sqi.itertuples():
+        if(row.sqi_range > threshold):
+            axs[0].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "red", lw = 0)
+            axs[1].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "red", lw = 0)
+        else:
+            axs[0].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "green", lw = 0)
+            axs[1].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "green", lw = 0)
+
+    axs[0].plot(hr_by_window.etime, hr_by_window.bpms, color = "black")
+    axs[0].set_ylabel("HR (BPM)")
+    axs[1].plot(verisense_green_ppg.etime, verisense_green_ppg.green, color = "black")
+    axs[1].set_ylabel("Green PPG")
+    fig.suptitle(f"Lucas sleep 09/06\n"
+                 f"Percent clean PPG: {pct_good:.2f}\n"
+                 f"Average HR: {average_hr:.2f}")
+
+    plt.show()
+
+    df_to_mat(verisense_green_ppg, outname = "lucas_sleep_0906_raw")
 
     walk1 = [1693560240, 1693560720]
     jog = [1693560721, 1693560870]

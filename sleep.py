@@ -11,6 +11,7 @@ import neurokit2 as nk
 import scipy
 from scipy.stats import linregress
 from dsci_tools import my_minmax
+import pytz
 sns.set_style("darkgrid")
 
 BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
@@ -27,20 +28,20 @@ def load_sleep_labels(file):
     return sleep_stages
 
 def main():
-    # for signal in SIGNALS:
-    #     download_signal(BUCKET, USER, DEVICE, signal)
+    for signal in SIGNALS:
+        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
 
 
-    verisense_green_ppg = combine_signal(USER, DEVICE, signal ="GreenPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache = False)
-    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = True)
+    verisense_green_ppg = combine_signal(USER, DEVICE, signal ="GreenPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache = False, after = "2023-09-01")
+    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False, after = "2023-09-01")
     start = 1693956331
     end = 1693986833
 
     sleep_stages = load_sleep_labels("/Users/lselig/Desktop/verisense/codebase/PhysioNet-Cardiovascular-Signal-Toolbox/lucas_sleep_0906_raw_class1.mat")
     sleep_stages_etime = np.linspace(start, end, sleep_stages.shape[0])
     verisense_green_ppg = verisense_green_ppg[verisense_green_ppg.etime.between(start, end)]
-    # verisense_acc = verisense_acc[verisense_acc.etime.between(start, end)]
-    # print(verisense_acc.head())
+    verisense_acc = verisense_acc[verisense_acc.etime.between(start, end)]
+    print(verisense_acc.head())
 
     tmp_signal, tmp_peaks, tmp_hr, tmp_sqi = calc_hr(verisense_green_ppg,
             25.0,
@@ -60,7 +61,7 @@ def main():
     hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
     pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
     average_hr = np.nanmean(hr_by_window.bpms)
-    fig, axs = plt.subplots(3, 1, figsize = (15, 9), sharex = True)
+    fig, axs = plt.subplots(4, 1, figsize = (15, 9), sharex = True)
     threshold =np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range)
     for row in tmp_sqi.itertuples():
         if(row.sqi_range > threshold):
@@ -77,8 +78,8 @@ def main():
 
     axs[2].plot(sleep_stages_etime, sleep_stages, color = "black", drawstyle = "steps-post", marker = ".")
     axs[2].set_ylabel("Sleep Stage")
-    # axs[3].plot(verisense_acc.etime, verisense_acc.mag, color = "black")
-    # axs[3].set_ylabel("Accel (g)")
+    axs[3].plot(verisense_acc.etime, verisense_acc.mag, color = "black")
+    axs[3].set_ylabel("Accel (g)")
     # map = {1: "Wake", 2: "REM", 3: "Light", 4: "Deep"}
     # axs[2].set_yticklabels([map[x] for x in axs[2].get_yticks()])
     fig.suptitle(f"Lucas sleep 09/06\n"
