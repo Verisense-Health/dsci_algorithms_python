@@ -122,6 +122,7 @@ def main():
 
     verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False, after = "2023-09-01")
     axivity_acc = combine_axivity(axivity_in_folder, combined_axivity_out_folder)
+
     # axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/acc_range_test/0901_day_axivity.csv")
     start = 1693544487
     compare_mag(USER,
