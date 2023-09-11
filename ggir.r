@@ -1,6 +1,7 @@
 install.packages("GGIR", dependencies = TRUE)
+install.packages('/Users/lselig/Desktop/tmp/GGIR_2.9-0.tar.gz', repos=NULL, type='source')
+    
 library(GGIR)
-
 
 loadedData = read.myacc.csv(rmc.file="/Users/lselig/Documents/joint_corp/watch_accel.csv",
                             rmc.dec=".",
@@ -18,32 +19,35 @@ if (file.exists(testfile)) file.remove(testfile)
 
 GGIR(mode=c(1,2,3,4,5),
       datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity",
-      outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity",
-      studyname = "tmp",
+      outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v4",
+      studyname = "tmp2",
       rmc.dec=".",
       rmc.firstrow.acc = 1,
-      rmc.firstrow.header=c(),
       rmc.col.acc = c(2, 3, 4),
       rmc.col.time=1,
       rmc.unit.acc = "g",
-      rmc.unit.temp = "C",
       rmc.unit.time = "UNIXsec",
-      rmc.sf = 100,
-      print.filename = TRUE)
+      rmc.sf = 100.0,
+      print.filename = TRUE,
+      rmc.configtz = "America/Chicago",
+      rmc.desiredtz = "America/Chicago",
+      do.cal = FALSE)
+
 
 GGIR(mode=c(1,2,3,4,5),
-     datadir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E",
-     outputdir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E",
-     #datadir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/GG2025E/210202054DFB/ggir_inputs",
-     #outputdir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/GG2025E/210202054DFB/ggir_outputs",     
+     datadir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_rescaled",
+     outputdir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v4",
      rmc.dec=".",
-     rmc.firstrow.acc = 2,
-     rmc.col.acc = c(1, 2, 3),
-     rmc.col.time=5,
+     rmc.firstrow.acc = 1,
+     rmc.col.acc = c(2, 3, 4),
+     rmc.col.time=1,
      rmc.unit.acc = "g",
      rmc.unit.time = "UNIXsec",
      rmc.sf = 31.25,
      print.filename = TRUE,
      do.cal = FALSE,
+     rmc.desiredtz = "America/Chicago",
+     rmc.configtz = 'America/Chicago',
+     rmc.check4timegaps = TRUE
      )
 

@@ -109,19 +109,60 @@ def combine_axivity(infolder, outfolder):
     df = pd.concat(dfs)
     df = df.sort_values(by = "etime")
     df = df.drop_duplicates()
-
+    df.to_csv(f"{outfolder}/axivity_acc.csv", index = False)
     return df
 
 
+def prep_ggir(axivity_acc_path, verisense_acc_path, start, end):
+    axivity_acc = pd.read_csv(axivity_acc_path)
+    verisense_acc = pd.read_csv(verisense_acc_path)
+
+    axivity_acc = axivity_acc[axivity_acc.etime.between(start, end)]
+    verisense_acc = verisense_acc[verisense_acc.etime.between(start, end)]
+    verisense_acc.to_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E/verisense_acc.csv", index = False)
+    axivity_acc.to_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity/axivity_acc.csv", index = False)
+
+    plt.plot(pd.to_datetime(axivity_acc.etime, unit = "s"), axivity_acc.mag, color="C0")
+    plt.plot(pd.to_datetime(verisense_acc.etime, unit = "s"), verisense_acc.mag, color = "C1")
+    plt.show()
+
 
 def main():
-    axivity_in_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/axivity"
-    combined_axivity_out_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity"
-    for signal in SIGNALS:
-        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
+    # df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/verisense_acc.csv")
+    # print(df.head(300), df.shape)
 
-    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False, after = "2023-09-01")
-    axivity_acc = combine_axivity(axivity_in_folder, combined_axivity_out_folder)
+    # df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity/axivity_acc.csv")
+    # print(df.head(300), df.shape)
+    # plt.plot(df.etime, df.mag)
+    # plt.plot(df2.etime, df2.mag)
+    # plt.show()
+
+    # axivity_in_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/axivity"
+    axivity_in_folder = "/Users/lselig/Library/CloudStorage/GoogleDrive-lucas.a.selig@gmail.com/My Drive/verisense/axivity"
+    combined_axivity_out_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity"
+    # for signal in SIGNALS:
+    #     download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
+    #
+    combine_axivity(axivity_in_folder, combined_axivity_out_folder)
+    axivity_acc = pd.read_csv(f"{combined_axivity_out_folder}/axivity_acc.csv")
+    verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E/verisense_acc.csv", use_cache = False, after = "2023-09-01")
+
+    # axivity_acc = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity/axivity_acc.csv")
+    # verisense_acc = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E/verisense_acc.csv")
+    print(axivity_acc.head())
+    print(axivity_acc.shape[0] / (axivity_acc.iloc[-1].etime - axivity_acc.iloc[0].etime))
+    print(verisense_acc.shape[0] / (verisense_acc.iloc[-1].etime - verisense_acc.iloc[0].etime))
+
+    print(verisense_acc.head())
+    plt.plot(verisense_acc.etime, verisense_acc.mag, alpha = 0.6)
+    plt.plot(axivity_acc.etime, axivity_acc.mag, alpha = 0.6)
+    plt.show()
+    # axivity_acc =
+    prep_ggir("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity/axivity_acc.csv",
+              "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E/verisense_acc.csv",
+              start = 1693956574,
+              end = np.inf)
+
     # axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/acc_range_test/0901_day_axivity.csv")
     start = 1693544487
     compare_mag(USER,

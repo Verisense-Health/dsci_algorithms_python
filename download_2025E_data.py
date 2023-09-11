@@ -110,7 +110,7 @@ def download_signal(bucket,
         else:
             print(f"Already downloaded: {obj}")
 
-def parse_verisense_direct_hr(f, signal):
+def parse_verisense_direct_hr(f):
     df = pd.read_csv(f)
     return df
 def combine_signal(user, device, signal, outfile, use_cache, after):
@@ -119,7 +119,7 @@ def combine_signal(user, device, signal, outfile, use_cache, after):
         return pd.read_csv(outfile)
     # files = Path(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}").glob("*.csv")
     files = glob.glob(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}/*.csv")
-    dfs = []
+    keep_dfs = []
     print(f"Combining {user}_{device}_{signal}")
     files_subset = []
     for f in files:
@@ -132,11 +132,11 @@ def combine_signal(user, device, signal, outfile, use_cache, after):
     with alive_bar(len(list(files_subset)), force_tty = True) as bar:
         for f in files_subset:
             if("HeartRate" not in signal):
-                dfs.append(parse_2025e(f, signal))
+                keep_dfs.append(parse_2025e(f, signal))
             else:
-                dfs.append(parse_verisense_direct_hr(f, signal))
+                keep_dfs.append(parse_verisense_direct_hr(f))
             bar()
-    df = pd.concat(dfs)
+    df = pd.concat(keep_dfs)
     df = df.sort_values(by = "etime")
     df = df.drop_duplicates()
     df.to_csv(outfile, index = False)
