@@ -43,11 +43,14 @@ GGIR(mode=c(1,2,3,4,5),
      rmc.col.time=1,
      rmc.unit.acc = "g",
      rmc.unit.time = "UNIXsec",
-     rmc.sf = 31.25,
+     rmc.sf = 32.0,
      print.filename = TRUE,
      do.cal = FALSE,
      rmc.desiredtz = "America/Chicago",
      rmc.configtz = 'America/Chicago',
-     rmc.check4timegaps = TRUE
+     rmc.check4timegaps = TRUE,
+     threshold.lig = 60, # 40
+     threshold.mod = 140, # 100
+     threshold.vig = 400 # 400
      )
 

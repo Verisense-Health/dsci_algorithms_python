@@ -4,6 +4,7 @@ import numpy as np
 from alive_progress import alive_bar
 import seaborn as sns
 import boto3, glob
+import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
 import pytz
@@ -43,26 +44,38 @@ def parse_accel(infile):
     df = df[["x", "y", "z"]]
     #orientation for shimmer imu
     # df = df.dot(np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]]))
-    df = df.dot(np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]]))
-    df = df.rename(columns={0: "x", 1: "y", 2: "z"})
+    # df = df.dot(np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]]))
+    # df = df.rename(columns={0: "x", 1: "y", 2: "z"})
     df["mag"] = mag
     df["etime"] = etime
     df['orig_etime'] = orig_etime
     df = df.sort_values(by="etime")
     df = df.drop_duplicates()
     return df
-def parse_green_ppg(infile):
+def parse_green_ppg(infile, show_plot = False):
     df = pd.read_csv(infile, skiprows=9)
     df.columns = ["etime", "green"]
     df["etime"] = df["etime"] / 1000
     df = df.sort_values(by="etime")
+    if(show_plot):
+        plt.plot(df.etime, df.green)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Green PPG (a.u.)")
+        plt.title(infile.split("/")[-1])
+        plt.show()
     return df
-def parse_red_ppg(infile):
+def parse_red_ppg(infile, show_plot = False):
     # print(infile)
     df = pd.read_csv(infile, skiprows=9)
     df.columns = ["etime", "red"]
     df["etime"] = df["etime"] / 1000
     df = df.sort_values(by="etime")
+    if (show_plot):
+        plt.plot(df.etime, df.red)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Red PPG (a.u.)")
+        plt.title(infile.split("/")[-1])
+        plt.show()
     return df
 def parse_2025e(infile, signal):
     if(signal == "Accel"):

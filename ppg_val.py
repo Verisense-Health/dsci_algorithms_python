@@ -1,4 +1,4 @@
-from download_2025E_data import download_signal, combine_signal
+from download_2025E_data import download_signal, combine_signal, parse_green_ppg, parse_red_ppg
 from collections import OrderedDict
 from pathlib import Path
 import pandas as pd
@@ -589,4 +589,11 @@ def main():
 
 
 if __name__ == "__main__":
+    # green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_green/230911_012101_GreenPPG.csv", show_plot = True)
+    # red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_red/230911_101009_RedPPG.csv", show_plot = True)
+
+    green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_green/230911_133453_GreenPPG.csv", show_plot = True)
+    red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_red/230911_150717_RedPPG.csv", show_plot = True)
+
+    plt.plot(green_ppg)
     main()
