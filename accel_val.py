@@ -168,7 +168,6 @@ def compare_imu_2025():
 
     plt.show()
 
-
 def compare_shimmer3_2025():
     watch1 = parse_accel("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_accel_range_test/accel range test 1 x axis watch data.csv")
     watch2 = parse_accel("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_accel_range_test/accel range test 1 y axis watch data.csv")
@@ -221,9 +220,6 @@ def compare_shimmer3_2025():
         axs[i].legend()
         axs[i].set_ylabel("Counts")
     plt.show()
-
-
-
 
 
 def main():
