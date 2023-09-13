@@ -44,8 +44,8 @@ def parse_accel(infile):
     df = df[["x", "y", "z"]]
     #orientation for shimmer imu
     # df = df.dot(np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]]))
-    # df = df.dot(np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]]))
-    # df = df.rename(columns={0: "x", 1: "y", 2: "z"})
+    df = df.dot(np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]]))
+    df = df.rename(columns={0: "x", 1: "y", 2: "z"})
     df["mag"] = mag
     df["etime"] = etime
     df['orig_etime'] = orig_etime
