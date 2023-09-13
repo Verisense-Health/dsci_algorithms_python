@@ -6,7 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from parse_third_party import parse_axivity, read_line, parse_imu, parse_shimmer3_accel
+from dateutil import parser
 sns.set_style("darkgrid")
+
 
 BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
 USER = "LS2025E"
@@ -221,9 +223,13 @@ def compare_shimmer3_2025():
     plt.show()
 
 
+
+
+
 def main():
-    compare_shimmer3_2025()
-    compare_imu_2025()
+
+    # compare_shimmer3_2025()
+    # compare_imu_2025()
 
 
     # df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/verisense_acc.csv")

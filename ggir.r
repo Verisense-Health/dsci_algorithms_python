@@ -1,7 +1,29 @@
 install.packages("GGIR", dependencies = TRUE)
-install.packages('/Users/lselig/Desktop/tmp/GGIR_2.9-0.tar.gz', repos=NULL, type='source')
-    
+
+# Libraries
 library(GGIR)
+library(ggplot2)
+library(dplyr)
+
+load("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v5/output_ggir_inputs_2025E_clean/meta/basic/meta_verisense_acc.csv.RData")
+etime <- M$metashort$timestamp
+ENMO <- M$metashort$ENMO
+data <- data.frame(etime = etime,
+                   mag = ENMO)
+write.csv(data, "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v5/output_ggir_inputs_2025E/meta/basic/verisense_ggir_metrics.csv", row.names=FALSE)
+
+load("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5/output_ggir_inputs_axivity_clean/meta/basic/meta_axivity_acc.csv.RData")
+etime <- M$metashort$timestamp
+ENMO <- M$metashort$ENMO
+data <- data.frame(etime = etime,
+                   mag = ENMO)
+write.csv(data, "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5/output_ggir_inputs_axivity/meta/basic/axivity_ggir_metrics.csv", row.names=FALSE)
+
+
+p <- ggplot(data, aes(x=etime, y=mag)) +
+    geom_line() + ''
+    xlab("")
+p
 
 loadedData = read.myacc.csv(rmc.file="/Users/lselig/Documents/joint_corp/watch_accel.csv",
                             rmc.dec=".",
@@ -17,9 +39,29 @@ if (file.exists(testfile)) file.remove(testfile)
 
 # list.files("/Users/lselig/Documents/axivity")[1]
 
+C_verisense <- g.calibrate(datafile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_clean/verisense_acc.csv",
+            rmc.dec=".",
+            rmc.firstrow.acc = 1,
+            rmc.col.acc = c(2, 3, 4),
+            rmc.col.time=1,
+            rmc.unit.acc = "g",
+            rmc.unit.time = "UNIXsec",
+            rmc.sf = 32.0,
+)
+
+C_axivity <- g.calibrate(datafile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean/axivity_acc.csv",
+                           rmc.dec=".",
+                           rmc.firstrow.acc = 1,
+                           rmc.col.acc = c(2, 3, 4),
+                           rmc.col.time=1,
+                           rmc.unit.acc = "g",
+                           rmc.unit.time = "UNIXsec",
+                           rmc.sf = 100.0,
+)
+
 GGIR(mode=c(1,2,3,4,5),
-      datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity",
-      outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v4",
+      datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean",
+      outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5",
       studyname = "tmp2",
       rmc.dec=".",
       rmc.firstrow.acc = 1,
@@ -28,15 +70,23 @@ GGIR(mode=c(1,2,3,4,5),
       rmc.unit.acc = "g",
       rmc.unit.time = "UNIXsec",
       rmc.sf = 100.0,
+     frag.metrics="all",
+     part5_agg2_60seconds=TRUE,
       print.filename = TRUE,
       rmc.configtz = "America/Chicago",
       rmc.desiredtz = "America/Chicago",
-      do.cal = FALSE)
+     savems5rawlevels = TRUE,
+     #scale = c(C_axivity$scale[1], C_axivity$scale[2], C_axivity$scale[3]),
+     #offset = c(C_axivity$offset[1], C_axivity$offset[2], C_axivity$offset[3]),
+     #do.cal = FALSE,
+     do.cal = TRUE,
+     minloadcrit = 24,
+     printsummary = TRUE)
 
 
 GGIR(mode=c(1,2,3,4,5),
-     datadir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_rescaled",
-     outputdir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v4",
+     datadir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_clean",
+     outputdir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v5",
      rmc.dec=".",
      rmc.firstrow.acc = 1,
      rmc.col.acc = c(2, 3, 4),
@@ -44,13 +94,19 @@ GGIR(mode=c(1,2,3,4,5),
      rmc.unit.acc = "g",
      rmc.unit.time = "UNIXsec",
      rmc.sf = 32.0,
+     frag.metrics="all",
+     part5_agg2_60seconds=TRUE,
      print.filename = TRUE,
-     do.cal = FALSE,
+     do.cal = TRUE,
      rmc.desiredtz = "America/Chicago",
      rmc.configtz = 'America/Chicago',
-     rmc.check4timegaps = TRUE,
-     threshold.lig = 60, # 40
-     threshold.mod = 140, # 100
-     threshold.vig = 400 # 400
+     savems5rawlevels = TRUE,
+     #scale = c(C_verisense$scale[1], C_verisense$scale[2], C_verisense$scale[3]),
+     #offset = c(C_verisense$offset[1], C_verisense$offset[2], C_verisense$offset[3]),
+     minloadcrit = 24,
+     printsummary = TRUE
+     #threshold.lig = 60, # 40
+     #threshold.mod = 140, # 100
+     #threshold.vig = 400 # 400
      )
 
