@@ -10,7 +10,7 @@ import neurokit2 as nk
 import scipy
 from scipy.stats import linregress
 from dsci_tools import my_minmax
-from parse_third_party import parse_polar
+from parse_external import parse_polar
 sns.set_style("darkgrid")
 
 BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
