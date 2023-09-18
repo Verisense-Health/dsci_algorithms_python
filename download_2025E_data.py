@@ -108,6 +108,29 @@ def download_signal(bucket,
     objects_with_substring = wr.s3.list_objects(path=f"s3://{bucket}/1/{user}/{device}/ParsedFiles/", suffix=f"{signal}.csv",
                                                 boto3_session=session,
                                                 last_modified_begin = datetime.strptime(after, "%Y-%m-%d").astimezone(pytz.timezone("US/Central")))
+
+    objects_with_substring_bin = wr.s3.list_objects(path=f"s3://{bucket}/1/{user}/{device}/BinaryFiles/", suffix=f"{signal}.bin2",
+                                                boto3_session=session,
+                                                last_modified_begin = datetime.strptime(after, "%Y-%m-%d").astimezone(pytz.timezone("US/Central")))
+
+    missing_some = False
+    assert(len(objects_with_substring) == len(objects_with_substring_bin))
+    for obj in objects_with_substring_bin:
+        obj_name = obj.split(".")[0].split("/")[-1]
+        have = False
+        for obj2 in objects_with_substring:
+            if(obj_name in obj2):
+                have = True
+                break
+        if(not have):
+            print("MISSING PARSED: ", obj)
+            missing_some = True
+
+    if(missing_some):
+        return -1
+        a = 1
+
+
     for obj in objects_with_substring:
         print("Object Key:", obj)
         saveloc = Path(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}")

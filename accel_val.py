@@ -1,4 +1,5 @@
 from download_2025E_data import download_signal, combine_signal, parse_accel
+from dsci_tools import replace_gaps
 import glob
 from pathlib import Path
 import pandas as pd
@@ -223,6 +224,12 @@ def compare_shimmer3_2025():
 
 def main():
 
+    for signal in SIGNALS:
+        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
+    verisense_acc = combine_signal(USER, DEVICE, signal = "Accel", outfile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_longitudinal/verisense_acc.csv", use_cache = False, after = "2023-09-14")
+    verisense_acc = replace_gaps(verisense_acc, show_plot=True)
+    outfile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_longitudinal/verisense_acc.csv"
+    verisense_acc.to_csv(outfile, index = False)
     # compare_shimmer3_2025()
     # compare_imu_2025()
 
@@ -239,8 +246,6 @@ def main():
     # axivity_in_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/axivity"
     axivity_in_folder = "/Users/lselig/Library/CloudStorage/GoogleDrive-lucas.a.selig@gmail.com/My Drive/verisense/axivity"
     combined_axivity_out_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity"
-    # for signal in SIGNALS:
-    #     download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
     #
     combine_axivity(axivity_in_folder, combined_axivity_out_folder)
     axivity_acc = pd.read_csv(f"{combined_axivity_out_folder}/axivity_acc.csv")

@@ -29,8 +29,8 @@ def replace_gaps(df, show_plot = True):
     gap_fillers = []
     if(show_plot):
         fig, axs = plt.subplots(4, 1, sharex = True)
-        axs[0].plot(df.etime.values[:-1] ,diffs)
-        axs[1].plot(df.etime, df.x)
+        axs[0].plot(pd.to_datetime(df.etime.values[:-1] , unit = "s"),diffs)
+        axs[1].plot(pd.to_datetime(df.etime, unit = "s"), df.x)
 
     for gap in gaps:
         start = df.iloc[gap].etime
@@ -48,8 +48,8 @@ def replace_gaps(df, show_plot = True):
     print(df.shape[0] / (df.iloc[-1].etime - df.iloc[0].etime))
 
     if(show_plot):
-        axs[2].plot(df.etime, df.x)
-        axs[3].plot(df.etime.values[:-1] ,np.diff(df.etime))
+        axs[2].plot(pd.to_datetime(df.etime, unit = "s"), df.x)
+        axs[3].plot(pd.to_datetime(df.etime.values[:-1] , unit = "s"),np.diff(df.etime))
         plt.show()
     return df
 

@@ -1,4 +1,5 @@
 import pandas as pd
+from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -46,7 +47,7 @@ def compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df):
         plt.show()
 
 
-def compare_activity(USER, DEVICE, verisense_activity_df, axivity_activity_df):
+def compare_activity_summary(USER, DEVICE, verisense_activity_df, axivity_activity_df):
     features = ["dur_day_total_IN_min", "dur_day_total_LIG_min", "dur_day_total_MOD_min", "dur_day_total_VIG_min",
                 "dur_day_min", "L5VALUE", "M5VALUE", "nonwear_perc_day"]
     fig, axs = plt.subplots(2, 4, figsize = (15, 9))
@@ -101,25 +102,113 @@ def debug_ggir(verisense_infile, reference_infile, v_acc, a_acc):
 
     plt.show()
 
+
+def compare_activity_raw(USER, DEVICE, RUN_VERSION, SUFFIX):
+    verisense_activity_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/meta/ms5.outraw/40_100_400/verisense_acc_T5A5.csv")
+    axivity_activity_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_axivity_{RUN_VERSION}/output_ggir_inputs_axivity_{SUFFIX}/meta/ms5.outraw/40_100_400/axivity_acc_T5A5.csv")
+    naxis = 2
+    fig, axs = plt.subplots(naxis, 1, figsize = (15, 9))
+    axs[0].plot(verisense_activity_df.timenum, verisense_activity_df.ACC, label = "Verisense", color = "C0")
+    axs[0].set_ylabel("Window ENMO")
+    axs[0].set_title("Verisense")
+    axs[1].plot(axivity_activity_df.timenum, axivity_activity_df.ACC, label = "Axivity", color = "C1")
+    axs[1].set_ylabel("Window ENMO")
+    axs[1].set_title("Axivity")
+    for i in range(naxis):
+        axs[i].axhline(30, color = "green", ls = "--", alpha = 0.5, label = "Light")
+        axs[i].axhline(100, color = "orange", ls = "--", alpha = 0.5, label = "Moderate")
+        axs[i].axhline(400, color = "red", ls = "--", alpha = 0.5, label = "Vigorous")
+        axs[i].legend()
+    plt.legend()
+    fig.suptitle("GGIR Compare - Lucas Longitudinal Data")
+    plt.show()
+    #
+    plt.plot(verisense_activity_df.timenum, verisense_activity_df.ACC, label = "Verisense", color = "C0")
+    plt.plot(axivity_activity_df.timenum, axivity_activity_df.ACC, label = "Axivity", color = "C1")
+    plt.legend()
+    plt.xlabel("Window")
+    plt.ylabel("Window ENMO")
+    plt.show()
+
+
+
 if __name__ == "__main__":
     # v_infile_ggir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v5/output_ggir_inputs_2025E/meta/basic/verisense_ggir_metrics.csv"
     # a_infile_ggir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5/output_ggir_inputs_axivity/meta/basic/axivity_ggir_metrics.csv"
-    v_acc = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E/verisense_acc.csv"
-    a_acc = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity/axivity_acc.csv"
-    v_acc = pd.read_csv(v_acc)
-    a_acc = pd.read_csv(a_acc)
 
-    plt.plot(pd.to_datetime(v_acc.etime, unit = "s"), np.sqrt(v_acc.x ** 2 + v_acc.y ** 2 + v_acc.z ** 2), label = "verisense", alpha = 0.6)
-    plt.plot(pd.to_datetime(a_acc.etime, unit = "s"), np.sqrt(a_acc.x ** 2 + a_acc.y ** 2 + a_acc.z ** 2), label = "axivity", alpha = 0.6)
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("Magnitude of Acc(g)")
-    plt.title("Lucas Longitudinal Acceleration Data")
-    plt.show()
+    # v = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v5/output_ggir_inputs_2025E_clean/meta/ms2.out/verisense_acc.csv")
+    # a = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5/output_ggir_inputs_axivity_clean/meta/ms2.out/axivity_acc.csv")
+
+    # fig, axs = plt.subplots(2, 1, sharex = True, figsize = (15, 9))
+    # axs[0].plot([parser.parse(x) for x in v.etime], v.mag, label = "Verisense")
+    # axs[0].plot([parser.parse(x) for x in a.etime], a.mag, label = "Axivity")
+    # axs[0].set_ylabel("ENMO (g)")
+    # axs[0].legend()
+    #
+    # axs[1].plot([parser.parse(x) for x in v.etime], v.anglez, label = "Verisense")
+    # axs[1].plot([parser.parse(x) for x in a.etime], a.anglez, label = "Axivity")
+    # axs[1].set_ylabel("Angle (deg)")
+    # axs[1].legend()
+    # plt.show()
+
+
+
+    # v_acc = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_clean/verisense_acc.csv"
+    # a_acc = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean/axivity_acc.csv"
+    # v_acc = pd.read_csv(v_acc)
+    # a_acc = pd.read_csv(a_acc)
+    #
+    # plt.plot(pd.to_datetime(v_acc.etime, unit = "s"), np.sqrt(v_acc.x ** 2 + v_acc.y ** 2 + v_acc.z ** 2), label = "verisense", alpha = 0.6)
+    # plt.plot(pd.to_datetime(a_acc.etime, unit = "s"), np.sqrt(a_acc.x ** 2 + a_acc.y ** 2 + a_acc.z ** 2), label = "axivity", alpha = 0.6)
+    # plt.legend()
+    # plt.xlabel("Time (s)")
+    # plt.ylabel("Magnitude of Acc(g)")
+    # plt.title("Lucas Longitudinal Acceleration Data")
+    # plt.show()
     # debug_ggir(v_infile_ggir,
     #           a_infile_ggir,
     #           v_acc,
     #           a_acc)
+    USER = "LS2025E"
+    DEVICE = "210202054E02"
+    RUN_VERSION = "longitudinal"
+    SUFFIX = "longitudinal"
+    stopwatch_df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/activity_tracker.csv")
+    verisense_activity_df = pd.read_csv(
+        f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/meta/ms5.outraw/40_100_400/verisense_acc_T5A5.csv")
+    raw_data = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_inputs/ggir_inputs_2025E_{RUN_VERSION}/verisense_acc.csv")
+    naxis = 2
+
+    fig, axs = plt.subplots(naxis, 1, figsize=(15, 9))
+    axs[0].plot(raw_data.etime, np.sqrt(raw_data.x ** 2 + raw_data.y ** 2 + raw_data.z ** 2) - 1)
+    axs[0].set_ylabel("ENMO")
+
+    axs[1].plot(verisense_activity_df.timenum, verisense_activity_df.ACC, label="Verisense", color="C0")
+    axs[1].set_ylabel("GGIR Window ENMO")
+    axs[1].set_title("Verisense")
+    activity_colors = {}
+    activities = np.unique(stopwatch_df.activity.values)
+    for i, activity in enumerate(activities):
+        activity_colors[activity] = f"C{i}"
+
+    for i in range(naxis):
+        for label in stopwatch_df.itertuples():
+            a = 1
+            axs[i].axvspan(label.start, label.stop, alpha=0.5, color = activity_colors[label.activity], label = label.activity)
+
+
+        axs[i].axhline(30, color="green", ls="--", alpha=0.5, label="Light")
+        axs[i].axhline(100, color="orange", ls="--", alpha=0.5, label="Moderate")
+        axs[i].axhline(400, color="red", ls="--", alpha=0.5, label="Vigorous")
+        axs[i].legend()
+
+    handles, labels = axs[0].get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    axs[0].legend(by_label.values(), by_label.keys(),
+                  loc='upper center', bbox_to_anchor=(0.5, 1.50),
+                  ncol=3, fancybox=True, shadow=True)
+    fig.suptitle("GGIR Compare - Lucas Longitudinal Data")
+    plt.show()
 
     USER = "LS2025E"
     DEVICE = "210202054E02"
@@ -130,5 +219,6 @@ if __name__ == "__main__":
 
     verisense_activity_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/results/QC/part5_daysummary_full_MM_L40M100V400_T5A5.csv")
     axivity_activity_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_axivity_{RUN_VERSION}/output_ggir_inputs_axivity_{SUFFIX}/results/QC/part5_daysummary_full_MM_L40M100V400_T5A5.csv")
+    compare_activity_raw(USER, DEVICE, RUN_VERSION, SUFFIX)
     compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df)
-    compare_activity(USER, DEVICE, verisense_activity_df, axivity_activity_df)
+    compare_activity_summary(USER, DEVICE, verisense_activity_df, axivity_activity_df)
