@@ -114,7 +114,6 @@ def combine_axivity(infolder, outfolder):
     df.to_csv(f"{outfolder}/axivity_acc.csv", index = False)
     return df
 
-
 def prep_ggir(axivity_acc_path, verisense_acc_path, start, end):
     axivity_acc = pd.read_csv(axivity_acc_path)
     verisense_acc = pd.read_csv(verisense_acc_path)

@@ -57,9 +57,14 @@ def calc_sqi(ppg_df, color, window, stride):
         if(end >= last):
             break
         slice = ppg_df[ppg_df.etime.between(start, end)]
-        sqi_std.append(np.nanstd(slice[color].values))
-        sqi_slope.append(linregress(slice.etime.values, slice[color].values).slope)
-        data_range.append(np.nanmax(slice[color].values) - np.nanmin(slice[color].values))
+        if(slice.shape[0] == 0):
+            sqi_std.append(np.nan)
+            sqi_slope.append(np.nan)
+            data_range.append(np.nan)
+        else:
+            sqi_std.append(np.nanstd(slice[color].values))
+            sqi_slope.append(linregress(slice.etime.values, slice[color].values).slope)
+            data_range.append(np.nanmax(slice[color].values) - np.nanmin(slice[color].values))
         start += stride
         anchors.append(end)
     return pd.DataFrame({"etime": anchors, "sqi_std": sqi_std, "sqi_slope": sqi_slope, "sqi_range": data_range})
@@ -125,6 +130,18 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
     # plt.ylabel(f"PPG {ppg_valname}")
     plt.legend()
     plt.show()
+
+    if(do_smoothing):
+        from scipy.signal import savgol_filter
+        ppg_signal_savgol = savgol_filter(ppg_signal, 51, 3)  # window size 51, polynomial order 3
+        plt.plot(ppg_signal_savgol, color = "purple", label = "smoothed", alpha = 0.5)
+        plt.plot(ppg_signal, color = "black", label = "orig", alpha = 0.5)
+        plt.legend()
+        plt.ylabel("Red PPG")
+        plt.xlabel("Sample")
+        plt.show()
+        # pass
+        ppg_signal = ppg_signal_savgol
     processed_signal, info = nk.ppg_process(ppg_signal, sampling_rate=fs)  # Replace with your actual sampling rate
     ppg_hr = processed_signal["PPG_Rate"]
     is_peak = processed_signal["PPG_Peaks"].values
@@ -141,8 +158,6 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
         b, a = scipy.signal.butter(order, [low_cutoff, high_cutoff], btype='bandpass')
         # Apply the bandpass filter to the PPG signal
         ppg_signal_bp = scipy.signal.lfilter(b, a, ppg_signal)
-    if(do_smoothing):
-        pass
 
 
 
@@ -151,11 +166,21 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
     # peaks, _ = find_peaks(ppg_signal_bp)
     # blah = hp.process(my_minmax(ppg_signal_bp), sample_rate = 25.0, calc_freq = True)
     # green
-    bpm_max = 220
+    # 200 BPM
+    # 3.33 BP second
+    # 100 Samples per sec
+    # need 100 / 3.33 spacing between
+    bpm_max = 200
     bpsecond_max = bpm_max / 60
+    distance = fs / bpsecond_max
 
 
-    peaks_custom, _ = find_peaks(ppg_clean, height = 0)
+    if(ppg_color == "red"):
+        # peaks_custom, _ = find_peaks(ppg_clean, height = -100, distance = distance)
+        peaks_custom, _ = find_peaks(ppg_clean, distance = distance)
+        # peaks_custom, _ = find_peaks(ppg_clean, height = 0)
+    else:
+        peaks_custom, _ = find_peaks(ppg_clean, height=0)
     fig, axs = plt.subplots(2, 1, figsize=(15, 9), sharex=True)
     axs[0].plot(ppg_raw)
     axs[1].plot(ppg_clean)
@@ -514,31 +539,40 @@ def main():
     #     download_signal(BUCKET, USER, DEVICE, signal)
 
     # verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False)
-    polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_20min/POLAR_lselig_green_ppg_20min.CSV")
-    # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/red_ppg_test_30min/POLAR_Lucas_Selig_2023-09-01_12-03-31_red_ppg_test.csv")
+    # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_20min/POLAR_lselig_green_ppg_20min.CSV")
+    polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/red_ppg_test_30min/POLAR_Lucas_Selig_2023-09-01_12-03-31_red_ppg_test.csv")
     # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_walk_run/POLAR_Lucas_Selig_2023-09-01_09-19-52_green_walk_run.csv")
-    verisense_green_ppg = combine_signal(USER, DEVICE, signal ="GreenPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache = False)
+    verisense_green_ppg = combine_signal(USER, DEVICE, signal ="GreenPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache = False, after = "2023-08-01")
+    verisense_red_ppg = combine_signal(USER, DEVICE, signal ="RedPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv", use_cache = True, after = "2023-08-01")
+    FS = 100.0
+
     start = 1693956331
     end = 1693986833
+    start = polar_df.iloc[0].etime
+    end = polar_df.iloc[-1].etime
     verisense_green_ppg = verisense_green_ppg[verisense_green_ppg.etime.between(start, end)]
+    verisense_red_ppg = verisense_red_ppg[verisense_red_ppg.etime.between(start, end)]
+
+    PPG_SIGNAL  = verisense_red_ppg
 
     # sqi = calc_sqi(verisense_green_ppg, "green", window = 30, stride = 1)
-    tmp_signal, tmp_peaks, tmp_hr, tmp_sqi = calc_hr(verisense_green_ppg,
-            25.0,
+    tmp_signal, tmp_peaks, tmp_hr, tmp_sqi = calc_hr(PPG_SIGNAL,
+            FS,
             do_bandpass=False,
-            do_smoothing = False,
+            do_smoothing = True,
             do_median_filter = False,
-            ppg_color="green",
-            ppg_valname="green",
+            ppg_color="red",
+            ppg_valname="red",
             ppg_timename="etime",
             device="Verisense"
             )
 
-    hr_by_window = calc_hr_by_window(verisense_green_ppg, tmp_peaks, window = 30, stride = 1)
+    hr_by_window = calc_hr_by_window(PPG_SIGNAL, tmp_peaks, window = 30, stride = 1)
     hr_by_window = pd.merge(hr_by_window, tmp_sqi, on = ["etime"])
     hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
     pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
     average_hr = np.nanmean(hr_by_window.bpms)
+    compare_hrs(polar_df, verisense_red_ppg, None, None, "red", trial_name = "Red PPG 20 min stationary")
     fig, axs = plt.subplots(2, 1, figsize = (15, 9), sharex = True)
     threshold =np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range)
     for row in tmp_sqi.itertuples():
@@ -570,7 +604,6 @@ def main():
 
     # compare_hrs(polar_df, verisense_green_ppg, laps, labels, "green", trial_name = "Green PPG 20 min stationary")
     compare_hrs(polar_df, verisense_green_ppg, None, None, "green", trial_name = "Green PPG walk/run")
-    # compare_hrs(polar_df, verisense_red_ppg, None, None, "red", trial_name = "Red PPG 20 min stationary")
 
     green_ppg = combine_signal(USER, DEVICE, signal="GreenPPG", outfile=f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache=True)
     red_ppg = combine_signal(USER, DEVICE, signal="RedPPG", outfile=f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv", use_cache=True)
@@ -592,8 +625,8 @@ if __name__ == "__main__":
     # green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_green/230911_012101_GreenPPG.csv", show_plot = True)
     # red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_red/230911_101009_RedPPG.csv", show_plot = True)
 
+    main()
     green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_green/230911_133453_GreenPPG.csv", show_plot = True)
     red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_red/230911_150717_RedPPG.csv", show_plot = True)
 
     plt.plot(green_ppg)
-    main()
