@@ -47,6 +47,7 @@ def replace_gaps(df, show_plot = True):
     df["etime"] = np.linspace(df.iloc[0].etime, df.iloc[-1].etime, df.shape[0])
     print(df.shape[0] / (df.iloc[-1].etime - df.iloc[0].etime))
 
+    diffs = np.diff(df.etime)
     if(show_plot):
         axs[2].plot(pd.to_datetime(df.etime, unit = "s"), df.x)
         axs[3].plot(pd.to_datetime(df.etime.values[:-1] , unit = "s"),np.diff(df.etime))
