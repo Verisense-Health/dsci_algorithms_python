@@ -158,3 +158,28 @@ GGIR(mode=c(1,2,3,4,5),
      printsummary = TRUE,
      overwrite = TRUE)
 
+GGIR(mode=c(1,2,3,4,5),
+     datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/zeri1",
+     outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/zeri1",
+     studyname = "tmp2",
+     rmc.dec=".",
+     rmc.firstrow.acc = 1,
+     rmc.col.acc = c(2, 3, 4),
+     rmc.col.time=1,
+     rmc.unit.acc = "g",
+     rmc.unit.time = "UNIXsec",
+     rmc.sf = 100.0,
+     frag.metrics="all",
+     part5_agg2_60seconds=TRUE,
+     print.filename = TRUE,
+     rmc.configtz = "America/Chicago",
+     rmc.desiredtz = "America/Chicago",
+     save_ms5rawlevels = TRUE,
+     epochvalues2csv = TRUE,
+     #scale = c(C_verisense$scale[1], C_verisense$scale[2], C_verisense$scale[3]),
+     #offset = c(C_verisense$offset[1], C_verisense$offset[2], C_verisense$offset[3]),
+     minloadcrit = 24,
+     printsummary = TRUE,
+     overwrite = TRUE)
+
+

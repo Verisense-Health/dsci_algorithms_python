@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from datetime import datetime
 import pytz
+from dateutil import parser
 
 sns.set_style("darkgrid")
 AWS_ACCESS_KEY = "AKIAR2C2O5V35DS42JAQ"
@@ -77,6 +78,25 @@ def parse_red_ppg(infile, show_plot = False):
         plt.title(infile.split("/")[-1])
         plt.show()
     return df
+
+
+def parse_heart_rate(infile):
+    df = pd.read_csv(infile, skiprows=8)
+    df.columns = ["etime", "bpm"]
+    etimes = []
+    bpms = []
+    for i, x in enumerate(df.etime.values):
+        try:
+            etimes.append(parser.parse(x).timestamp())
+            bpms.append(int(str(df.bpm.values[i]).split(" ")[0]))
+        except:
+            pass
+
+    df = pd.DataFrame({"etime": etimes, "bpm": bpms})
+    df = df.sort_values(by="etime")
+    return df
+
+
 def parse_2025e(infile, signal):
     if(signal == "Accel"):
         df = parse_accel(infile)
@@ -84,12 +104,14 @@ def parse_2025e(infile, signal):
         df = parse_green_ppg(infile)
     elif(signal == "RedPPG"):
         df = parse_red_ppg(infile)
-    # elif(signal == "Temperature"):
-    #     df = parse_temperature(infile)
-    # elif(signal == "BloodOxygenLevel"):
-    #     df = parse_blood_oxygen_level(infile)
-    # elif(signal == "Step"):
-    #     df = parse_step(infile)
+    elif(signal == "HeartRate"):
+        df = parse_heart_rate(infile)
+    elif(signal == "Temperature"):
+        df = parse_temperature(infile)
+    elif(signal == "BloodOxygenLevel"):
+        df = parse_spo2(infile)
+    elif(signal == "Step"):
+        df = parse_steps(infile)
     else:
         raise ValueError("Signal not recognized")
         return -1
@@ -128,7 +150,6 @@ def download_signal(bucket,
 
     if(missing_some):
         return -1
-        a = 1
 
 
     for obj in objects_with_substring:
@@ -139,16 +160,9 @@ def download_signal(bucket,
         if(not Path(f"{str(saveloc)}/{obj.split('/')[-1]}").exists()):
             wr.s3.download(path=obj, local_file=f"{str(saveloc)}/{obj.split('/')[-1]}", boto3_session=session)
             print(f"Downloaded: {obj}")
-        if("230901_181617_RedPPG.csv" in obj):
-            wr.s3.download(path=obj, local_file=f"{str(saveloc)}/{obj.split('/')[-1]}", boto3_session=session)
-            print(f"Downloaded: {obj}")
-
         else:
             print(f"Already downloaded: {obj}")
 
-def parse_verisense_direct_hr(f):
-    df = pd.read_csv(f)
-    return df
 def combine_signal(user, device, signal, outfile, use_cache, after):
     after = datetime.strptime(after, "%Y-%m-%d")
     if(use_cache):
@@ -167,13 +181,46 @@ def combine_signal(user, device, signal, outfile, use_cache, after):
             files_subset.append(f)
     with alive_bar(len(list(files_subset)), force_tty = True) as bar:
         for f in files_subset:
-            if("HeartRate" not in signal):
-                keep_dfs.append(parse_2025e(f, signal))
-            else:
-                keep_dfs.append(parse_verisense_direct_hr(f))
+            keep_dfs.append(parse_2025e(f, signal))
             bar()
     df = pd.concat(keep_dfs)
     df = df.sort_values(by = "etime")
     df = df.drop_duplicates()
     df.to_csv(outfile, index = False)
     return df
+
+
+def parse_steps(infile):
+    df = pd.read_csv(infile, skiprows=8)
+    df.columns = ["etime", "steps", "calories", "distance", "detail_step"]
+    df = df.drop(["detail_step"], axis = 1)
+    df["etime"] =  [parser.parse(x).timestamp() for x in df.etime]
+    df = df.sort_values(by="etime")
+    return df
+def parse_spo2(infile):
+    df = pd.read_csv(infile, skiprows=8)
+    df.columns = ["etime", "spo2"]
+    df["etime"] =  [parser.parse(x).timestamp() for x in df.etime]
+    df = df.sort_values(by="etime")
+    return df
+
+def parse_temperature(infile):
+    df = pd.read_csv(infile, skiprows=8)
+    df.columns = ["etime", "temperature"]
+    df["etime"] =  [parser.parse(x).timestamp() for x in df.etime]
+    df = df.sort_values(by="etime")
+    return df
+
+
+# parse_temperature("/Users/lselig/Downloads/230917_231157_Temperature.csv")
+# parse_spo2("/Users/lselig/Downloads/230917_231157_BloodOxygenLevel.csv")
+# parse_heart_rate("/Users/lselig/Downloads/230917_212600_HeartRate.csv")
+# parse_steps("/Users/lselig/Downloads/230917_213955_Step.csv")
+BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
+USER = "LS2025E"
+DEVICE = "210202054E02"
+COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
+signals = ["HeartRate", "Temperature", "BloodOxygenLevel", "Step"]
+for signal in signals:
+    download_signal(BUCKET, USER, DEVICE, signal, "2021-02-02")
+    combine_signal(USER, DEVICE, signal=signal, outfile=f"{COMBINED_OUT_PATH}/verisense_{signal}.csv", use_cache=False, after="2023-08-01")
