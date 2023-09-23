@@ -94,7 +94,6 @@ def parse_heart_rate(infile):
 
     df = pd.DataFrame({"etime": etimes, "bpm": bpms})
     df = df.sort_values(by="etime")
-     a= 1
     return df
 
 
