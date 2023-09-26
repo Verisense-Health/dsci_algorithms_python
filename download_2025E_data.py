@@ -212,15 +212,16 @@ def parse_temperature(infile):
     return df
 
 
-# parse_temperature("/Users/lselig/Downloads/230917_231157_Temperature.csv")
-# parse_spo2("/Users/lselig/Downloads/230917_231157_BloodOxygenLevel.csv")
-# parse_heart_rate("/Users/lselig/Downloads/230917_212600_HeartRate.csv")
-# parse_steps("/Users/lselig/Downloads/230917_213955_Step.csv")
-BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
-USER = "LS2025E"
-DEVICE = "210202054E02"
-COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
-signals = ["HeartRate", "Temperature", "BloodOxygenLevel", "Step"]
-for signal in signals:
-    download_signal(BUCKET, USER, DEVICE, signal, "2021-02-02")
-    combine_signal(USER, DEVICE, signal=signal, outfile=f"{COMBINED_OUT_PATH}/verisense_{signal}.csv", use_cache=False, after="2023-08-01")
+if __name__ == "__main__":
+    # parse_temperature("/Users/lselig/Downloads/230917_231157_Temperature.csv")
+    # parse_spo2("/Users/lselig/Downloads/230917_231157_BloodOxygenLevel.csv")
+    # parse_heart_rate("/Users/lselig/Downloads/230917_212600_HeartRate.csv")
+    # parse_steps("/Users/lselig/Downloads/230917_213955_Step.csv")
+    BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
+    USER = "LS2025E"
+    DEVICE = "210202054E02"
+    COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
+    signals = ["HeartRate", "Temperature", "BloodOxygenLevel", "Step"]
+    for signal in signals:
+        download_signal(BUCKET, USER, DEVICE, signal, "2021-02-02")
+        combine_signal(USER, DEVICE, signal=signal, outfile=f"{COMBINED_OUT_PATH}/verisense_{signal}.csv", use_cache=False, after="2023-08-01")

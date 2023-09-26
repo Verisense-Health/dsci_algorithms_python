@@ -82,8 +82,57 @@ def parse_shimmer_ppg(shimmer_path):
 def parse_verisense_direct_hr(f, signal):
     df = pd.read_csv(f)
     return df
-def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_valname, ppg_timename, device):
+
+
+def jc_filter(ppg_clean, fs):
+    import numpy as np
+    from scipy import signal
+
+    # Define the filter specifications
+    lowcut = 0.5  # Lower cutoff frequency in Hz
+    highcut = 4.0  # Upper cutoff frequency in Hz
+    order = 4  # Filter order (you can adjust this as needed)
+
+    # Calculate the normalized cutoff frequencies
+    nyquist = 0.5 * fs
+    low = lowcut / nyquist
+    high = highcut / nyquist
+
+    # Design the Butterworth filter
+    b, a = signal.butter(order, [low, high], btype='band', output = "ba")
+
+    # output_signal = [0] * len(ppg_clean)
+    # y_prev = 0
+    iir8_b_acc = [0.01043241337109, 0, -0.02086482674219, 0, 0.01043241337109]
+    iir8_a_acc = [1, -3.676375529249, 5.087648273233, -3.143945051832, 0.7327260303718]
+
+    # for n in range(len(ppg_clean)):
+    #     x_n = ppg_clean[n]
+    #     y_n= iir8_b_acc[0] * x_n + iir8_b_acc[1] * x_n + iir8_b_acc[2] * x_n + iir8_b_acc[3] * x_n + iir8_b_acc[4] * x_n - iir8_a_acc[1] * y_prev - iir8_a_acc[2] * y_prev - iir8_a_acc[3] * y_prev - iir8_a_acc[4] * y_prev
+    #     output_signal[n] = y_n
+    #     y_prev = y_n
+
+    # output_signal = signal.lfilter(iir8_b_acc, iir8_a_acc, ppg_clean)
+    output_signal = signal.lfilter(b, a, ppg_clean)
+    return output_signal
+
+    # x8 = np.zeros(10)
+    # y8 = np.zeros(10)
+    #
+    # for i in [4, 3, 2, 1]:
+    #     x8[i] = x8[i - 1]
+    #     y8[i] = y8[i - 1]
+    #
+    # x8[0] = samp
+    # y8[0] = iir8_b_acc[0] * x8[0] + iir8_b_acc[1] * x8[1] + iir8_b_acc[2] * x8[2] + iir8_b_acc[3] * x8[3] + iir8_b_acc[4] * x8[4] - iir8_a_acc[0] * y8[0] - iir8_a_acc[1] * y8[1] - iir8_a_acc[2] * y8[2] - iir8_a_acc[3] * y8[3] - iir8_a_acc[4] * y8[4]
+    # return y8[0]
+
+
+def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_valname, ppg_timename, device,
+            do_jc_filter=False, do_nk_filter=None):
     ppg_signal = df[[ppg_valname]].values.flatten()
+    raw_signal = ppg_signal
+
     print("Calculating SQI")
     sqi = calc_sqi(df, ppg_color, window = 30, stride = 1)
     fig, axs = plt.subplots(4, 1, figsize = (15, 9), sharex = True)
@@ -121,7 +170,6 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
 
 
     if(do_median_filter):
-        ppg_signal = scipy.signal.medfilt(ppg_signal, kernel_size=25)
         axs[0].plot(ppg_signal, color = "red", label = "smoothed")
     # if(do_smoothing):
     #     Apply the moving average filter
@@ -142,11 +190,23 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
         plt.show()
         # pass
         ppg_signal = ppg_signal_savgol
-    processed_signal, info = nk.ppg_process(ppg_signal, sampling_rate=fs)  # Replace with your actual sampling rate
-    ppg_hr = processed_signal["PPG_Rate"]
-    is_peak = processed_signal["PPG_Peaks"].values
-    ppg_raw = processed_signal["PPG_Raw"].values
-    ppg_clean = processed_signal["PPG_Clean"].values
+    if(do_nk_filter):
+        processed_signal, info = nk.ppg_process(ppg_signal, sampling_rate=fs, report = "test_red.html")  # Replace with your actual sampling rate
+        ppg_hr = processed_signal["PPG_Rate"]
+        is_peak = processed_signal["PPG_Peaks"].values
+        ppg_raw = processed_signal["PPG_Raw"].values
+        ppg_clean_nk = processed_signal["PPG_Clean"].values
+        # ppg_clean = scipy.signal.medfilt(ppg_clean, kernel_size=25)
+
+    if(do_jc_filter):
+        ppg_clean = jc_filter(ppg_signal, fs)
+        is_peak = None
+
+    else:
+        ppg_clean = ppg_signal
+            # ppg_clean.append(jc_filter(samp))
+
+
     # peaks = processed_signal[1]["PPG_Peaks"]
     if(do_bandpass):
         f1, f2 = 0.5, 8.0  # Bandpass frequency range (Hz)
@@ -160,6 +220,22 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
         ppg_signal_bp = scipy.signal.lfilter(b, a, ppg_signal)
 
 
+
+
+    fig, axs = plt.subplots(2, 1, figsize = (15, 9), sharex = True)
+
+    axs[0].plot(raw_signal, color = "black", label = "raw")
+    axs[1].plot(ppg_clean, color = "black", label = "jointcorp filter", alpha = 0.6)
+    axs[1].plot(ppg_clean_nk, color = "red", label = "original filter", alpha = 0.6)
+    axs[1].legend()
+    axs[0].set_ylabel(f"Raw {ppg_color} PPG")
+    axs[0].set_title("Raw")
+    axs[1].set_ylabel(f"Preprocessed {ppg_color} PPG")
+    axs[1].set_title("Preprocessed")
+    axs[1].set_xlabel("Sample")
+    fig.suptitle("Filtering comparison")
+    plt.tight_layout()
+    plt.show()
 
     # ppg_signal_bp = np.array([x[0] for x in ppg_signal_bp])
     # peaks, _ = find_peaks(ppg_signal_bp, distance = fs /6)
@@ -182,17 +258,18 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
     else:
         peaks_custom, _ = find_peaks(ppg_clean, height=0)
     fig, axs = plt.subplots(2, 1, figsize=(15, 9), sharex=True)
-    axs[0].plot(ppg_raw)
+    axs[0].plot(raw_signal)
     axs[1].plot(ppg_clean)
     # axs[2].plot(ppg_med_filt)
-    peak_idxs = np.where(is_peak > 0)
+    if(is_peak is not None):
+        peak_idxs = np.where(is_peak > 0)
+        axs[0].scatter(peak_idxs, raw_signal[peak_idxs], marker="x", color="black")
+        axs[1].scatter(peak_idxs, ppg_clean[peak_idxs], marker="x", color="black")
 
-    axs[0].scatter(peaks_custom, ppg_raw[peaks_custom], marker="x", color="red")
+    axs[0].scatter(peaks_custom, raw_signal[peaks_custom], marker="x", color="red")
     axs[1].scatter(peaks_custom, ppg_clean[peaks_custom], marker="x", color="red")
     # axs[2].scatter(peaks_custom, ppg_med_filt[peaks_custom], marker="x", color="red")
 
-    axs[0].scatter(peak_idxs, ppg_raw[peak_idxs], marker="x", color="black")
-    axs[1].scatter(peak_idxs, ppg_clean[peak_idxs], marker="x", color="black")
     # axs[2].scatter(peak_idxs, ppg_med_filt[peak_idxs], marker="x", color="black")
     # axs[2].scatter(range(len(processed_signal["PPG_Rate"])), processed_signal["PPG_Rate"])
     # axs[3].plot(processed_signal["PPG_Peaks"])
@@ -208,7 +285,7 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
               f"duration = {(np.round(df[ppg_timename].max() - df[ppg_timename].min()), 2)[0]:.2f} seconds\n"
               f"BPM = {len(peaks_custom) / (((df[ppg_timename].max() - df[ppg_timename].min())) / 60):.2f}")
     plt.show()
-    return ppg_clean, peaks_custom, ppg_hr, sqi
+    return ppg_clean, peaks_custom, sqi
 
 def calc_hr_by_window(df, peaks, window, stride):
     bpms, anchors = [], []
@@ -255,7 +332,7 @@ def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title,
     # plt.show()
 
 
-    v_signal, v_peaks, v_hr, v_sqi = calc_hr(verisense_df,
+    v_signal, v_peaks, v_sqi = calc_hr(verisense_df,
                                 fs=25.0,
                                 do_bandpass=True,
                                 do_smoothing=False,
@@ -264,7 +341,7 @@ def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title,
                                 ppg_timename="etime",
                                 device="Verisense")
 
-    s_signal, s_peaks, s_hr, s_sqi = calc_hr(shimmer_df,
+    s_signal, s_peaks, s_sqi = calc_hr(shimmer_df,
                                 fs=100.0,
                                 do_bandpass=True,
                                 do_smoothing=False,
@@ -405,6 +482,36 @@ def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title,
     axs[2].scatter(shimmer_df.etime.values[s_peaks], s_signal[s_peaks], marker=".", color="black", label="peak")
     plt.legend()
     plt.show()
+
+
+def optimize_alignment(polar_hr_array, verisense_hr_array, trial_name):
+    shifts = range(1, 31)
+    best_mae = np.inf
+    best_shift = None
+    for shift in shifts:
+        tmp_polar = polar_hr_array[shift:]
+        tmp_verisense = verisense_hr_array[:-shift]
+        mae = np.nanmean(np.absolute(np.subtract(tmp_polar, tmp_verisense)))
+        if(mae < best_mae):
+            best_mae = mae
+            best_shift = shift
+            print(best_mae, best_shift)
+
+    shifts = range(-30, -1)
+    for shift in shifts:
+        tmp_polar = verisense_hr_array[shift:]
+        tmp_verisense = polar_hr_array[:-shift]
+        mae = np.nanmean(np.absolute(np.subtract(tmp_polar, tmp_verisense)))
+        if(mae < best_mae):
+            best_mae = mae
+            best_shift = shift
+            print(best_mae, best_shift)
+
+
+    print("BEST MAE:", best_mae, "BEST SHIFT:", best_shift)
+    return best_mae, best_shift
+
+
 def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_name):
 
     # plt.plot(polar_df.etime, polar_df.hr, label = "Polar")
@@ -416,8 +523,8 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
 
 
     # plt.plot(pd.to_datetime(polar_df.etime, unit = "s"), polar_df.hr, label = "Polar")
-    plt.plot(pd.to_datetime(verisense_ppg_df.etime, unit = "s"), verisense_ppg_df[ppg_channel], label = "Verisense PPG")
-    plt.show()
+    # plt.plot(pd.to_datetime(verisense_ppg_df.etime, unit = "s"), verisense_ppg_df[ppg_channel], label = "Verisense PPG")
+    # plt.show()
 
     if(ppg_channel == "green"):
         fs = 25.0
@@ -425,7 +532,7 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     if(ppg_channel == "red"):
         fs = 100.0
 
-    v_signal, v_peaks, v_hr, v_sqi = calc_hr(verisense_ppg_df,
+    v_signal, v_peaks, v_sqi = calc_hr(verisense_ppg_df,
                                 fs=fs,
                                 do_bandpass=True,
                                 do_smoothing=True,
@@ -451,6 +558,7 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     anchors = np.array(anchors)
     verisense_hr = pd.DataFrame({"etime": anchors, "bpms": bpms})
     verisense_hr = verisense_hr[verisense_hr.etime <= verisense_ppg_df.iloc[-1].etime]
+    verisense_hr["etime"] = verisense_hr.etime - 8
     polar_df = polar_df[polar_df.etime.between(verisense_hr.iloc[0].etime, verisense_ppg_df.iloc[-1].etime)]
     naxes = 2
     fig, axs = plt.subplots(naxes, 1, figsize=(15, 9), sharex=True)
@@ -491,6 +599,8 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     print("HR array lens", len(polar_df), len(verisense_hr))
     good_polar_idx = np.where(polar_df.hr != 0)[0][:-1]
     verisense_hr = pd.merge(verisense_hr,sqi, on = ["etime"])
+    good_polar_idx = np.where(good_polar_idx < len(verisense_hr))[0]
+
     # polar_hr_array = pd.merge(polar_df, sqi, on = ["etime"])
     if(len(good_polar_idx) > 0):
         # polar_hr_array = polar_df.hr.values[good_polar_idx]
@@ -503,6 +613,7 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     verisense_hr_array = verisense_hr.iloc[good_sqi].bpms.values
     polar_hr_array = polar_df.iloc[good_sqi].hr.values
     # polar_hr_array = polar_hr_array[good_sqi]
+    polar_shift_sec = optimize_alignment(polar_hr_array, verisense_hr_array, trial_name)
     print("polar verisense correlation", np.corrcoef(polar_hr_array, verisense_hr_array)[0, 1])
     print("polar verisense mae", np.mean(np.absolute(np.subtract(polar_hr_array, verisense_hr_array))))
     # print("polar verisense correlation", np.corrcoef(polar_hr_array, verisense_hr_array)[0, 1])
@@ -545,22 +656,26 @@ def main():
     verisense_green_ppg = combine_signal(USER, DEVICE, signal ="GreenPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache = False, after = "2023-08-01")
     verisense_red_ppg = combine_signal(USER, DEVICE, signal ="RedPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv", use_cache = True, after = "2023-08-01")
     FS = 100.0
+    # FS = 25.0
 
-    start = 1693956331
-    end = 1693986833
-    start = polar_df.iloc[0].etime
-    end = polar_df.iloc[-1].etime
+    # start = 1693956331
+    # end = 1693986833
+    start = polar_df.iloc[0].etime + 60 * 2
+    end = polar_df.iloc[-1].etime - 60 * 2
     verisense_green_ppg = verisense_green_ppg[verisense_green_ppg.etime.between(start, end)]
     verisense_red_ppg = verisense_red_ppg[verisense_red_ppg.etime.between(start, end)]
 
     PPG_SIGNAL  = verisense_red_ppg
+    # PPG_SIGNAL  = verisense_green_ppg
 
     # sqi = calc_sqi(verisense_green_ppg, "green", window = 30, stride = 1)
-    tmp_signal, tmp_peaks, tmp_hr, tmp_sqi = calc_hr(PPG_SIGNAL,
+    tmp_signal, tmp_peaks, tmp_sqi = calc_hr(PPG_SIGNAL,
             FS,
             do_bandpass=False,
-            do_smoothing = True,
+            do_smoothing = False,
             do_median_filter = False,
+            do_jc_filter=True,
+            do_nk_filter = True,
             ppg_color="red",
             ppg_valname="red",
             ppg_timename="etime",
@@ -572,7 +687,7 @@ def main():
     hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
     pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
     average_hr = np.nanmean(hr_by_window.bpms)
-    compare_hrs(polar_df, verisense_red_ppg, None, None, "red", trial_name = "Red PPG 20 min stationary")
+    compare_hrs(polar_df, PPG_SIGNAL, None, None, "green", trial_name = "Green PPG 20 min stationary")
     fig, axs = plt.subplots(2, 1, figsize = (15, 9), sharex = True)
     threshold =np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range)
     for row in tmp_sqi.itertuples():
@@ -626,7 +741,7 @@ if __name__ == "__main__":
     # red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_red/230911_101009_RedPPG.csv", show_plot = True)
 
     main()
-    green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_green/230911_133453_GreenPPG.csv", show_plot = True)
-    red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_red/230911_150717_RedPPG.csv", show_plot = True)
-
-    plt.plot(green_ppg)
+    # green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_green/230911_133453_GreenPPG.csv", show_plot = True)
+    # red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/muaaz_red/230911_150717_RedPPG.csv", show_plot = True)
+    #
+    # plt.plot(green_ppg)
