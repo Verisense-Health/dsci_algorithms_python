@@ -215,8 +215,9 @@ def calc_hr(df, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color, ppg_
         nyquist_freq = 0.5 * fs
         low_cutoff = f1 / nyquist_freq
         high_cutoff = f2 / nyquist_freq
+        a = 1
         b, a = scipy.signal.butter(order, [low_cutoff, high_cutoff], btype='bandpass')
-        # Apply the bandpass filter to the PPG signal
+        # Apply the band    pass filter to the PPG signal
         ppg_signal_bp = scipy.signal.lfilter(b, a, ppg_signal)
 
 
