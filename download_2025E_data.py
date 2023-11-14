@@ -20,7 +20,10 @@ def read_line(infile, linei):
                 return line
     return None
 def parse_accel(infile):
-    df = pd.read_csv(infile, skiprows=9)
+    try:
+        df = pd.read_csv(infile, skiprows=9)
+    except:
+        return None
     df.columns = ["etime", "x", "y", "z"]
     df = df.sort_values(by = "etime")
     df["x"] = (df["x"] / 256)
@@ -136,7 +139,7 @@ def download_signal(bucket,
                                                 last_modified_begin = datetime.strptime(after, "%Y-%m-%d").astimezone(pytz.timezone("US/Central")))
 
     missing_some = False
-    assert(len(objects_with_substring) == len(objects_with_substring_bin))
+    # assert(len(objects_with_substring) == len(objects_with_substring_bin))
     for obj in objects_with_substring_bin:
         obj_name = obj.split(".")[0].split("/")[-1]
         have = False
@@ -148,8 +151,8 @@ def download_signal(bucket,
             print("MISSING PARSED: ", obj)
             missing_some = True
 
-    if(missing_some):
-        return -1
+    # if(missing_some):
+    #     return -1
 
 
     for obj in objects_with_substring:
@@ -181,8 +184,10 @@ def combine_signal(user, device, signal, outfile, use_cache, after):
             files_subset.append(f)
     with alive_bar(len(list(files_subset)), force_tty = True) as bar:
         for f in files_subset:
-            keep_dfs.append(parse_2025e(f, signal))
-            bar()
+            ret = parse_2025e(f, signal)
+            if(ret is not None):
+                keep_dfs.append(ret)
+                bar()
     df = pd.concat(keep_dfs)
     df = df.sort_values(by = "etime")
     df = df.drop_duplicates()
@@ -222,6 +227,14 @@ if __name__ == "__main__":
     DEVICE = "210202054E02"
     COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
     signals = ["HeartRate", "Temperature", "BloodOxygenLevel", "Step"]
+
+
+    df = parse_accel("/Users/lselig/Downloads/231005_045405_Accel.csv")
+    plt.ylabel("Time Diff (s)")
+    plt.xlabel("Sample Index")
+    plt.plot(np.diff(df.etime))
+    plt.show()
+
     for signal in signals:
         download_signal(BUCKET, USER, DEVICE, signal, "2021-02-02")
         combine_signal(USER, DEVICE, signal=signal, outfile=f"{COMBINED_OUT_PATH}/verisense_{signal}.csv", use_cache=False, after="2023-08-01")

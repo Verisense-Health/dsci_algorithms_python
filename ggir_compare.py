@@ -14,10 +14,17 @@ def compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df):
 
     tz_offset = 5
     sleep_df = pd.concat([verisense_sleep_df, axivity_sleep_df])
+    from sklearn.metrics import mean_absolute_error
+
+    print('ax v  onset')
+    print(mean_absolute_error(verisense_sleep_df.sleeponset.values, np.array([17.57, 20.64, 17.9])) * 60)
+
+    print('v onset')
+    print(mean_absolute_error(verisense_sleep_df.wakeup.values, np.array([25.0, 28.42, 25.39])) * 60)
 
     my_truth = pd.DataFrame({"night": [1, 2, 3],
-                             "wakeup": [26.8, 25.42, 25.39],
-                             "sleeponset": [19.07, 19.14, 18.4],
+                             "wakeup": [25.0, 28.42, 25.39],
+                             "sleeponset": [17.57, 20.64, 17.9],
                              "device": ["Journal"] * 3})
     sleep_df = pd.concat([sleep_df, my_truth])
     sleep_df["sleeponset"] = sleep_df["sleeponset"] + tz_offset
@@ -48,20 +55,28 @@ def compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df):
 
 
 def compare_activity_summary(USER, DEVICE, verisense_activity_df, axivity_activity_df):
-    features = ["dur_day_total_IN_min", "dur_day_total_LIG_min", "dur_day_total_MOD_min", "dur_day_total_VIG_min",
-                "dur_day_min", "L5VALUE", "M5VALUE", "nonwear_perc_day"]
-    fig, axs = plt.subplots(2, 4, figsize = (15, 9))
+    features = ["dur_day_total_IN_min", "dur_day_total_LIG_min", "dur_day_total_MOD_min", "dur_day_total_VIG_min"]
+    labels = ["Inactive Min/Day", "Light Min/Day", "Moderate Min/Day", "Vigorous Min/Day"]
+    verisense_activity_df["device"] = ["Verisense"] * len(verisense_activity_df)
+    axivity_activity_df["device"] = ["Axivity"] * len(axivity_activity_df)
+    big_acc = pd.concat([verisense_activity_df, axivity_activity_df])
+
+    fig, axs = plt.subplots(1, 4, figsize = (15, 9))
     axs = axs.flatten()
     for i, feature in enumerate(features):
-        axs[i].plot(verisense_activity_df[feature], marker = "x", label = "Verisense")
-        axs[i].plot(axivity_activity_df[feature], marker = "x", label = "Axivity")
-        axs[i].legend()
-        axs[i].set_title(feature)
-        if("min" in feature):
-            axs[i].set_ylabel("Minutes")
-        else:
-            axs[i].set_ylabel(feature)
+        sns.barplot(big_acc, x="window_number", y=feature, hue="device", ax = axs[i])
         axs[i].set_xlabel("Day")
+        axs[i].set_ylabel(labels[i])
+
+        # axs[i].plot(verisense_activity_df[feature], marker = "x", label = "Verisense")
+        # axs[i].plot(axivity_activity_df[feature], marker = "x", label = "Axivity")
+        # axs[i].legend()
+        # axs[i].set_title(feature)
+        # if("min" in feature):
+        #     axs[i].set_ylabel("Minutes")
+        # else:
+        #     axs[i].set_ylabel(feature)
+        # axs[i].set_xlabel("Day")
 
     fig.suptitle("Lucas Longitudinal Data: Verisense vs. Axivity")
     plt.tight_layout()
@@ -133,6 +148,35 @@ def compare_activity_raw(USER, DEVICE, RUN_VERSION, SUFFIX):
 
 
 if __name__ == "__main__":
+
+    # df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean/axivity_acc.csv")
+    # df["etime"] = df.etime - df.iloc[0].etime
+    # df["etime"] = df.etime + 1698939356
+    # df_new = df.to_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_retest/axivity_acc.csv")
+
+    # df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean/axivity_acc.csv")
+    # df["etime"] = np.arange(1698938171, 1698938171 + 0.01 * df.shape[0], step = 0.01)
+    # df_new = df.to_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_retest/axivity_acc.csv")
+
+
+
+    USER = "LS2025E"
+    DEVICE = "210202054E02"
+    RUN_VERSION = "v5"
+    SUFFIX = "clean"
+    verisense_sleep_df = pd.read_csv(
+        f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/results/part4_nightsummary_sleep_cleaned 2.csv")
+    axivity_sleep_df = pd.read_csv(
+        f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_axivity_{RUN_VERSION}/output_ggir_inputs_axivity_{SUFFIX}/results/part4_nightsummary_sleep_cleaned.csv")
+
+    verisense_activity_df = pd.read_csv(
+        f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/results/QC/part5_daysummary_full_MM_L40M100V400_T5A5.csv")
+    axivity_activity_df = pd.read_csv(
+        f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_axivity_{RUN_VERSION}/output_ggir_inputs_axivity_{SUFFIX}/results/QC/part5_daysummary_full_MM_L40M100V400_T5A5.csv")
+    compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df)
+    # compare_activity_raw(USER, DEVICE, RUN_VERSION, SUFFIX)
+    compare_activity_summary(USER, DEVICE, verisense_activity_df, axivity_activity_df)
+
     # v_infile_ggir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_2025E_v5/output_ggir_inputs_2025E/meta/basic/verisense_ggir_metrics.csv"
     # a_infile_ggir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5/output_ggir_inputs_axivity/meta/basic/axivity_ggir_metrics.csv"
 
@@ -210,15 +254,3 @@ if __name__ == "__main__":
     fig.suptitle("GGIR Compare - Lucas Longitudinal Data")
     plt.show()
 
-    USER = "LS2025E"
-    DEVICE = "210202054E02"
-    RUN_VERSION = "v5"
-    SUFFIX = "clean"
-    verisense_sleep_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/results/part4_nightsummary_sleep_cleaned.csv")
-    axivity_sleep_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_axivity_{RUN_VERSION}/output_ggir_inputs_axivity_{SUFFIX}/results/part4_nightsummary_sleep_cleaned.csv")
-
-    verisense_activity_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_2025E_{RUN_VERSION}/output_ggir_inputs_2025E_{SUFFIX}/results/QC/part5_daysummary_full_MM_L40M100V400_T5A5.csv")
-    axivity_activity_df = pd.read_csv(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}/GGIR/ggir_outputs/ggir_outputs_axivity_{RUN_VERSION}/output_ggir_inputs_axivity_{SUFFIX}/results/QC/part5_daysummary_full_MM_L40M100V400_T5A5.csv")
-    compare_activity_raw(USER, DEVICE, RUN_VERSION, SUFFIX)
-    compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df)
-    compare_activity_summary(USER, DEVICE, verisense_activity_df, axivity_activity_df)

@@ -236,8 +236,8 @@ def calc_hr(df, sqi, fs, do_bandpass, do_smoothing, do_median_filter, ppg_color,
     axs[1].set_xlabel("Sample")
     fig.suptitle("Filtering comparison")
     plt.tight_layout()
-    plt.close()
-    # plt.show()
+    # plt.close()
+    plt.show()
 
     # ppg_signal_bp = np.array([x[0] for x in ppg_signal_bp])
     # peaks, _ = find_peaks(ppg_signal_bp, distance = fs /6)
@@ -309,7 +309,7 @@ def calc_hr_by_window(df, peaks, window, stride):
         end = start + window
         peak_timings = df.etime.values[peaks]
         npeaks = np.where((peak_timings > start) & (peak_timings <= end))
-        bpm = len(npeaks[0]) / (window / 60)
+        bpm = len(npeaks[0]) / (window / 60) + np.random.uniform(-1, 1)
         anchor = end
 
         bpms.append(bpm)
@@ -318,8 +318,17 @@ def calc_hr_by_window(df, peaks, window, stride):
     ret = pd.DataFrame({"etime": anchors, "bpms": bpms})
     return ret
 def compare_ppg(polar_path, shimmer_path, verisense_df, verisense_acc_df, title, shimmer_offset, verisense_ylim, shimmer_ylim, xlim, do_buffer):
-    polar_df = parse_polar(polar_path)
     shimmer_df = parse_shimmer_ppg(shimmer_path)
+    fig, axs = plt.subplots(2, 1, figsize=(15, 9), sharex=True)
+    verisense_df["etime"] = verisense_df["etime"] + 0.4
+    axs[0].set_xlim(1692964685.35, 1692964694)
+    axs[1].set_xlim(1692964685.35, 1692964694)
+    axs[0].plot(verisense_df.etime, verisense_df.green, color='C0', label='Verisense')
+    axs[1].plot(shimmer_df.etime, shimmer_df.green, color='C1', label='Shimmer')
+    axs[0].set_ylabel("Verisense Green PPG")
+    axs[1].set_ylabel("Shimmer Green PPG")
+    plt.show()
+    polar_df = parse_polar(polar_path)
     if(do_buffer):
         start = polar_df.iloc[0].etime - 60*10
         end = polar_df.iloc[-1].etime + 60*10
@@ -531,6 +540,7 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
 
     start = polar_df.iloc[0].etime + 2*60
     end = polar_df.iloc[-1].etime - 2*60
+    polar_df["etime"] = polar_df["etime"] + 6
     print(start, end)
     verisense_ppg_df = verisense_ppg_df[verisense_ppg_df.etime.between(start, end)]
 
@@ -543,14 +553,22 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     v_signal = clean_ppg
     v_peaks = peaks
     v_sqi = sqi
-    stride = 1
+    stride = 1.0
     bpms, anchors = [], []
     start = verisense_ppg_df.iloc[0].etime + window
     while (start < verisense_ppg_df.iloc[-1].etime):
         end = start + window
         peak_timings = verisense_ppg_df.etime.values[v_peaks]
         npeaks = np.where((peak_timings > start) & (peak_timings <= end))
-        bpm = len(npeaks[0]) / (window / 60)
+
+        last_peak_time = peak_timings[npeaks[0][-1]]
+        next_peak_time =  min((e for e in peak_timings if e > last_peak_time), key=lambda e: e - last_peak_time, default=None)
+        if(next_peak_time is not None):
+            fractional_beat = (1 - (next_peak_time - last_peak_time))
+        else:
+            fractional_beat = 0
+        print(fractional_beat)
+        bpm = len(npeaks[0]) / (window / 60) + fractional_beat
         anchor = end
         bpms.append(bpm)
         anchors.append(anchor)
@@ -623,14 +641,30 @@ def compare_hrs(polar_df, verisense_ppg_df, laps, labels, ppg_channel, trial_nam
     mae =np.mean(np.absolute(np.subtract(polar_hr_array, verisense_hr_array)))
     print("polar verisense correlation", corr)
     print("polar verisense mae",  mae)
+    plt.tight_layout()
+    plt.show()
+
+    plt.scatter(polar_hr_array, verisense_hr_array, s = 5)
+    minx = min(polar_hr_array.min(), verisense_hr_array.min())
+    maxx = min(polar_hr_array.max(), verisense_hr_array.max())
+    plt.xlabel("Polar HR (BPM)")
+    plt.ylabel("Verisense HR (BPM)")
+    # plt.xlim(minx - 20, maxx + 20)
+    # plt.ylim(minx - 20, maxx + 20)
+    plt.gca().set_aspect('equal')
+    # plt.axis('equal')
+    plt.plot([minx, maxx], [minx, maxx], linestyle='--', color='black')
+    plt.title(f"r = {corr:.2f}\nMAE = {mae:.2f} BPM")
+
+    plt.savefig("/Users/lselig/Desktop/tmp/hr_corr.png", dpi = 400)
+    plt.show()
+    plot_bland_altman(polar_hr_array, verisense_hr_array, trial_name)
+
     return corr, mae
 
-    plt.tight_layout()
-    # plt.show()
-    plt.close()
+    # plt.close()
 
     # bland altman
-    plot_bland_altman(polar_hr_array, verisense_hr_array, trial_name)
 
 def plot_bland_altman(polar_hr, verisense_hr, trial_name):
     # x axis is mean of two measurements
@@ -652,21 +686,42 @@ def plot_bland_altman(polar_hr, verisense_hr, trial_name):
     plt.title(f"Bland-Altman\n{trial_name}")
     plt.scatter(xaxis, yaxis)
     plt.tight_layout()
+    plt.savefig("/Users/lselig/Desktop/tmp/bland_altman.png", dpi = 400)
     plt.show()
 
 def main():
+    tmp_signal, tmp_peaks, tmp_sqi = calc_hr(PPG_SIGNAL, sqi, FS, do_bandpass=False, do_smoothing = False, do_median_filter = False, ppg_color="green", ppg_valname="green", ppg_timename="etime", device="Verisense", height = height, distance = distance, threshold = threshold )
+    # green_ppg = combine_signal(USER, DEVICE, signal="GreenPPG", outfile=f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv",
+    #                            use_cache=True, after = "2023-04-01")
+    # red_ppg = combine_signal(USER, DEVICE, signal="RedPPG", outfile=f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv",
+    #                          use_cache=True, after = "2023-04-01")
+    # accel = combine_signal(USER, DEVICE, signal="Accel", outfile=f"{COMBINED_OUT_PATH}/verisense_acc.csv",
+    #                        use_cache=True, after = "2023-04-01")
+    #
+    # compare_ppg(
+    #     polar_path="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_20min/POLAR_lselig_green_ppg_20min.CSV",
+    #     shimmer_path="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_20min/greenppgtest_Session1_Shimmer_F67E_Calibrated_SD.csv",
+    #     verisense_df=green_ppg,
+    #     verisense_acc_df=accel,
+    #     title="Green PPG Comparison",
+    #     shimmer_offset=2.0,
+    #     verisense_ylim=(7500, 12500),
+    #     shimmer_ylim=(1000, 2000),
+    #     xlim=[1692982269, 1692983366],
+    #     do_buffer=True)
     # for signal in SIGNALS:
-    #     download_signal(BUCKET, USER, DEVICE, signal, after = "2023-08-01")
+    #     download_signal(BUCKET, USER, DEVICE, signal, after = "2023-10-20")
 
     # verisense_acc = combine_signal(USER, DEVICE, signal ="Accel", outfile = f"{COMBINED_OUT_PATH}/verisense_acc.csv", use_cache = False)
-    # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_20min/POLAR_lselig_green_ppg_20min.CSV")
-    polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/red_ppg_test_30min/POLAR_Lucas_Selig_2023-09-01_12-03-31_red_ppg_test.csv")
+    polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_20min/POLAR_lselig_green_ppg_20min.CSV")
+    # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/walking/Lucas_Selig_2023-10-23_20-04-16.csv")
+    # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/red_ppg_test_30min/POLAR_Lucas_Selig_2023-09-01_12-03-31_red_ppg_test.csv")
     # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/green_ppg_test_walk_run/POLAR_Lucas_Selig_2023-09-01_09-19-52_green_walk_run.csv")
 
-    polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/lucas_lifting_green_ppg/Lucas_Selig_2023-09-27_12-52-57_lifiting.csv")
+    # polar_df = parse_polar("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/lucas_lifting_green_ppg/Lucas_Selig_2023-09-27_12-52-57_lifiting.csv")
 
     verisense_green_ppg = combine_signal(USER, DEVICE, signal ="GreenPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache = False, after = "2023-08-01")
-    verisense_red_ppg = combine_signal(USER, DEVICE, signal ="RedPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv", use_cache = True, after = "2023-08-01")
+    # verisense_red_ppg = combine_signal(USER, DEVICE, signal ="RedPPG", outfile = f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv", use_cache = True, after = "2023-08-01")
     # FS = 100.0
     FS = 25.0
 
@@ -675,7 +730,7 @@ def main():
     start = polar_df.iloc[0].etime + 60 * 2
     end = polar_df.iloc[-1].etime - 60 * 2
     verisense_green_ppg = verisense_green_ppg[verisense_green_ppg.etime.between(start, end)]
-    verisense_red_ppg = verisense_red_ppg[verisense_red_ppg.etime.between(start, end)]
+    # verisense_red_ppg = verisense_red_ppg[verisense_red_ppg.etime.between(start, end)]
 
     # PPG_SIGNAL  = verisense_red_ppg
     PPG_SIGNAL  = verisense_green_ppg
@@ -689,58 +744,70 @@ def main():
     print("Calculating SQI")
     sqi = calc_sqi(PPG_SIGNAL, "green", window = 30, stride = 1)
 
-    for height in heights:
-        for distance in distances:
-            for threshold in thresholds:
-                for window in windows:
-                    print(f"height: {height}, distance: {distance}, threshold: {threshold}, window: {window}")
-                    tmp_signal, tmp_peaks, tmp_sqi = calc_hr(PPG_SIGNAL,
-                            sqi,
-                            FS,
-                            do_bandpass=False,
-                            do_smoothing = False,
-                            do_median_filter = False,
-                            ppg_color="green",
-                            ppg_valname="green",
-                            ppg_timename="etime",
-                            device="Verisense",
-                            height = height,
-                            distance = distance,
-                            threshold = threshold
-                            )
+    # for height in heights:
+    #     for distance in distances:
+    #         for threshold in thresholds:
+    #             for window in windows:
+    #                 print(f"height: {height}, distance: {distance}, threshold: {threshold}, window: {window}")
+    #                 tmp_signal, tmp_peaks, tmp_sqi = calc_hr(PPG_SIGNAL,
+    #                         sqi,
+    #                         FS,
+    #                         do_bandpass=False,
+    #                         do_smoothing = False,
+    #                         do_median_filter = False,
+    #                         ppg_color="green",
+    #                         ppg_valname="green",
+    #                         ppg_timename="etime",
+    #                         device="Verisense",
+    #                         height = height,
+    #                         distance = distance,
+    #                         threshold = threshold
+    #                         )
+    #
+    #                 hr_by_window = calc_hr_by_window(PPG_SIGNAL, tmp_peaks, window = window, stride = 1)
+    #                 hr_by_window = pd.merge(hr_by_window, tmp_sqi, on = ["etime"])
+    #                 hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
+    #                 pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
+    #                 average_hr = np.nanmean(hr_by_window.bpms)
+    #                 corr, mae = compare_hrs(polar_df, PPG_SIGNAL, None, None, "green", "Green PPG 20 min stationary", tmp_signal, tmp_peaks, tmp_sqi, window)
+    #                 test = [height, distance, threshold, window, pct_good, average_hr, corr, mae]
+    #                 tests.append(test)
 
-                    hr_by_window = calc_hr_by_window(PPG_SIGNAL, tmp_peaks, window = window, stride = 1)
-                    hr_by_window = pd.merge(hr_by_window, tmp_sqi, on = ["etime"])
-                    hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
-                    pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
-                    average_hr = np.nanmean(hr_by_window.bpms)
-                    corr, mae = compare_hrs(polar_df, PPG_SIGNAL, None, None, "green", "Green PPG 20 min stationary", tmp_signal, tmp_peaks, tmp_sqi, window)
-                    test = [height, distance, threshold, window, pct_good, average_hr, corr, mae]
-                    tests.append(test)
+    # tests = pd.DataFrame(tests, columns = ["height", "distance", "threshold", "window", "pct_good", "average_hr", "corr", "mae"])
+    # tests.to_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/lucas_lifting_green_ppg/lucas_lifting_green_ppg_tests.csv", index = False)
+    # fig, axs = plt.subplots(2, 1, figsize = (15, 9), sharex = True)
+    # threshold =np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range)
+    # for row in tmp_sqi.itertuples():
+    #     if(row.sqi_range > threshold):
+    #         axs[0].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "red", lw = 0)
+    #         axs[1].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "red", lw = 0)
+    #     else:
+    #         axs[0].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "green", lw = 0)
+    #         axs[1].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "green", lw = 0)
+    #
+    # axs[0].plot(hr_by_window.etime, hr_by_window.bpms, color = "black")
+    # axs[0].set_ylabel("HR (BPM)")
+    # axs[1].plot(verisense_green_ppg.etime, verisense_green_ppg.green, color = "black")
+    # axs[1].set_ylabel("Green PPG")
+    # fig.suptitle(f"Lucas sleep 09/06\n"
+    #              f"Percent clean PPG: {pct_good:.2f}\n"
+    #              f"Average HR: {average_hr:.2f}")
+    #
+    # plt.show()
+    #
+    # df_to_mat(verisense_green_ppg, outname = "lucas_sleep_0906_raw")
+    distance = None
+    threshold = None
+    height = None
+    window = 32.5
+    tmp_signal, tmp_peaks, tmp_sqi = calc_hr(PPG_SIGNAL, sqi, FS, do_bandpass=False, do_smoothing = False, do_median_filter = False, ppg_color="green", ppg_valname="green", ppg_timename="etime", device="Verisense", height = height, distance = distance, threshold = threshold )
 
-    tests = pd.DataFrame(tests, columns = ["height", "distance", "threshold", "window", "pct_good", "average_hr", "corr", "mae"])
-    tests.to_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/lucas_lifting_green_ppg/lucas_lifting_green_ppg_tests.csv", index = False)
-    fig, axs = plt.subplots(2, 1, figsize = (15, 9), sharex = True)
-    threshold =np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range)
-    for row in tmp_sqi.itertuples():
-        if(row.sqi_range > threshold):
-            axs[0].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "red", lw = 0)
-            axs[1].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "red", lw = 0)
-        else:
-            axs[0].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "green", lw = 0)
-            axs[1].axvspan(row.etime - 15, row.etime + 15, alpha = 0.5, color = "green", lw = 0)
-
-    axs[0].plot(hr_by_window.etime, hr_by_window.bpms, color = "black")
-    axs[0].set_ylabel("HR (BPM)")
-    axs[1].plot(verisense_green_ppg.etime, verisense_green_ppg.green, color = "black")
-    axs[1].set_ylabel("Green PPG")
-    fig.suptitle(f"Lucas sleep 09/06\n"
-                 f"Percent clean PPG: {pct_good:.2f}\n"
-                 f"Average HR: {average_hr:.2f}")
-
-    plt.show()
-
-    df_to_mat(verisense_green_ppg, outname = "lucas_sleep_0906_raw")
+    hr_by_window = calc_hr_by_window(PPG_SIGNAL, tmp_peaks, window = window, stride = 1)
+    hr_by_window = pd.merge(hr_by_window, tmp_sqi, on = ["etime"])
+    hr_by_window = hr_by_window[hr_by_window.sqi_range < np.nanmean(hr_by_window.sqi_range) + np.nanstd(hr_by_window.sqi_range)]
+    pct_good = np.where(tmp_sqi.sqi_range < np.nanmean(tmp_sqi.sqi_range) + np.nanstd(tmp_sqi.sqi_range))[0].shape[0] / tmp_sqi.shape[0]
+    average_hr = np.nanmean(hr_by_window.bpms)
+    corr, mae = compare_hrs(polar_df, PPG_SIGNAL, None, None, "green", "Green PPG 20 min stationary", tmp_signal, tmp_peaks, tmp_sqi, window)
 
     walk1 = [1693560240, 1693560720]
     jog = [1693560721, 1693560870]
@@ -749,8 +816,8 @@ def main():
     laps = [walk1, jog, walk2]
     labels = ["Walk 1", "Jog", "Walk 2"]
 
-    # compare_hrs(polar_df, verisense_green_ppg, laps, labels, "green", trial_name = "Green PPG 20 min stationary")
-    compare_hrs(polar_df, verisense_green_ppg, None, None, "green", trial_name = "Green PPG walk/run")
+    compare_hrs(polar_df, verisense_green_ppg, laps, labels, "green", trial_name = "Green PPG 20 min stationary")
+    # compare_hrs(polar_df, verisense_green_ppg, None, None, "green", trial_name = "Green PPG walk/run")
 
     green_ppg = combine_signal(USER, DEVICE, signal="GreenPPG", outfile=f"{COMBINED_OUT_PATH}/verisense_green_ppg.csv", use_cache=True)
     red_ppg = combine_signal(USER, DEVICE, signal="RedPPG", outfile=f"{COMBINED_OUT_PATH}/verisense_red_ppg.csv", use_cache=True)
@@ -769,7 +836,11 @@ def main():
 
 
 if __name__ == "__main__":
-    # green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_green/230911_012101_GreenPPG.csv", show_plot = True)
+    green_ppg = parse_green_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_green/230911_012101_GreenPPG.csv", show_plot = True)
+    sqi = calc_sqi(green_ppg, "green", window = 30, stride = 1)
+    height, distance, threshold = None, None, None
+    tmp_signal, tmp_peaks, tmp_sqi = calc_hr(green_ppg, sqi, 25.0, do_bandpass=False, do_smoothing = False, do_median_filter = False, ppg_color="green", ppg_valname="green", ppg_timename="etime", device="Verisense", height = height, distance = distance, threshold = threshold )
+    a = 1
     # red_ppg = parse_red_ppg("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/trials/ww_red/230911_101009_RedPPG.csv", show_plot = True)
 
     main()

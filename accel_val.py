@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from collections import OrderedDict
 from parse_external import parse_axivity, read_line, parse_imu, parse_shimmer3_accel
 from dateutil import parser
 sns.set_style("darkgrid")
@@ -222,14 +223,138 @@ def compare_shimmer3_2025():
     plt.show()
 
 
+def compare_orientation(verisense_df, axivity_df, labels, laps):
+    tz = -6
+    plt.plot(pd.to_datetime(verisense_df.etime, unit = "s"), verisense_df.x)
+    plt.plot(pd.to_datetime(axivity_df.etime, unit = "s"), axivity_df.x)
+    plt.axvline(pd.to_datetime(laps[0][0], unit = 's'), color = "red")
+    plt.axvline(pd.to_datetime(laps[-1][-1], unit = "s"))
+    plt.show()
+    verisense_df = verisense_df[(verisense_df.etime >= laps[0][0]) & (verisense_df.etime <= laps[-1][1])]
+    axivity_df = axivity_df[(axivity_df.etime >= laps[0][0]) & (axivity_df.etime <= laps[-1][1])]
+    fig, axs = plt.subplots(3, 1, sharex=True, figsize=(15, 9))
+    for i, lap in enumerate(laps):
+        if (labels[i] == "Baseline"):
+            color = "pink"
+        elif (labels[i] == "Claps"):
+            color = "purple"
+        else:
+            color = f"C{i + 2}"
+
+        for j in range(len(axs)):
+            axs[j].set_ylim(-1.2, 1.2)
+            if (j == 3):
+                axs[j].axvspan(pd.to_datetime(laps[i][0], unit="s"),
+                               pd.to_datetime(laps[i][1], unit="s"), facecolor=color, alpha=0.3, zorder=3)
+            else:
+                axs[j].axvspan(pd.to_datetime(laps[i][0], unit="s"),
+                               pd.to_datetime(laps[i][1], unit="s"), facecolor=color, alpha=0.3, zorder=3,
+                               label=labels[i])
+
+    # fig.suptitle(title)
+    axs[0].plot(pd.to_datetime(verisense_df.etime, unit="s"), verisense_df.x.values, label="Smartwatch", color="C0")
+    # tw = axs[0].twinx()
+    # axs[0].plot(pd.to_datetime(verisense_df.iloc[0].etime, unit="s"), np.nan, label="IMU", color="C1")
+    axs[0].plot(pd.to_datetime(axivity_df.etime, unit="s"), axivity_df.x.values, label="Axivity", color="C1")
+    axs[0].set_ylabel("X(g)")
+    # tw.set_ylabel("IMU: X(g)")
+    handles, labels = axs[0].get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+
+    axs[1].plot(pd.to_datetime(verisense_df.etime, unit="s"), verisense_df.y.values, label="Smartwatch Y", color="C0")
+    # tw = axs[1].twinx()
+    axs[1].plot(pd.to_datetime(axivity_df.etime, unit="s"), axivity_df.y.values, label="IMU Y", color="C1")
+    axs[1].set_ylabel("Y(g)")
+    # tw.set_ylabel("IMU: Y(g)")
+
+    axs[2].plot(pd.to_datetime(verisense_df.etime, unit="s"), verisense_df.z.values, label="Smartwatch Z", color="C0")
+    # tw = axs[2].twinx()
+    axs[2].plot(pd.to_datetime(axivity_df.etime, unit="s"), axivity_df.z.values, label="IMU Z", color="C1")
+    axs[2].set_ylabel("Z(g)")
+    # tw.set_ylabel("IMU: Z(g)")
+
+    # axs[3].plot(pd.to_datetime(verisense_df.etime, unit="s"), np.sqrt(verisense_df.x.values ** 2 + verisense_df.y.values ** 2 + verisense_df.z.values ** 2),
+    #             label="Smartwatch Mag", color="C0")
+    # tw = axs[3].twinx()
+
+    # axs[3].plot(pd.to_datetime(axivity_df.etime + 3600, unit="s"),
+    #             np.sqrt(axivity_df.x.values ** 2 + axivity_df.y.values ** 2 + axivity_df.z.values ** 2),
+    #             label="IMU Mag", color="C1")
+
+    # axs[3].plot(pd.to_datetime(df.etime, unit="s"), np.sqrt(df.x.values ** 2 + df.y.values ** 2 + df.z.values ** 2),
+    #             label="mag", color="black")
+    # axs[3].set_ylabel("Magnitude(g)")
+    # tw.set_ylabel("IMU: Magnitude(g)")
+
+    axs[-1].set_xlabel("Time(s)")
+    # axs[4].plot(pd.to_datetime(df.etime, unit="s"), df.x.values, label="x", color="C1", alpha=1.0)
+    # axs[4].plot(pd.to_datetime(df.etime, unit="s"), df.y.values, label="y", color="C2", alpha=1.0)
+    # axs[4].plot(pd.to_datetime(df.etime, unit="s"), df.z.values, label="z", color="C3", alpha=1.0)
+    # axs[4].legend()
+    # plt.tight_layout()
+    axs[0].legend(by_label.values(), by_label.keys(),
+                  loc='upper center', bbox_to_anchor=(0.5, 1.50),
+                  ncol=3, fancybox=True, shadow=True)
+    plt.show()
+
+
 def main():
 
+
     for signal in SIGNALS:
-        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-09-01")
-    verisense_acc = combine_signal(USER, DEVICE, signal = "Accel", outfile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_longitudinal/verisense_acc.csv", use_cache = False, after = "2023-09-14")
-    verisense_acc = replace_gaps(verisense_acc, show_plot=True)
-    outfile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_longitudinal/verisense_acc.csv"
-    verisense_acc.to_csv(outfile, index = False)
+        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-10-29")
+
+    axivity_acc = parse_axivity("/Users/lselig/Desktop/orientations_vs_2025E.csv")
+    verisense_out = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/verisense_acc_orientation.csv"
+    verisense_acc = combine_signal(USER, DEVICE, signal = "Accel", outfile = verisense_out, use_cache = False, after = "2023-10-29")
+    # verisense_acc = pd.read_csv(verisense_out)
+    # axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/axivity/LS/axivity_jcw_baseline.csv")
+    start = axivity_acc.iloc[0].etime
+    end = axivity_acc.iloc[-1].etime
+    verisense_acc = verisense_acc[verisense_acc.etime.between(start, end)]
+
+    face_up = [1698673680, 1698673680 + 120 * 1]
+    face_down = [1698673680 + 120 * 1 + 10, 1698673680 + 120 * 2]
+    face_right = [1698673680 + 120 * 2 + 10, 1698673680 + 120 * 3]
+    face_left = [1698673680 + 120 * 3 + 10, 1698673680 + 120 * 4]
+    face_towards = [1698673680 + 120 * 4 + 10, 1698673680 + 120 * 5]
+    face_away = [1698673680 + 120 * 5 + 10, 1698673680 + 120 * 6]
+
+    laps = [face_up, face_down, face_left, face_right, face_towards, face_away]
+    labels = ["Face Up", "Face Down", "Face Left", "Face Right", "Face Towards", "Face Away"]
+    compare_orientation(verisense_acc, axivity_acc, labels, laps)
+
+    # axivity_acc = axivity_acc[axivity_acc.etime.between(start, end)]
+    plt.plot(verisense_acc.etime, verisense_acc.mag, label = "Verisense")
+    plt.plot(axivity_acc.etime, axivity_acc.mag, label = "Axivity")
+    plt.legend()
+    plt.ylabel("Magnitude (G)")
+    plt.xlabel("Time (s)")
+    plt.title("Baseline Compare: Axivity vs. Verisense")
+    plt.show()
+
+    fig, axs = plt.subplots(1, 2, figsize = (12, 9))
+    axs[0].hist(verisense_acc.mag.values, bins = 20)
+    axs[1].hist(axivity_acc.mag.values, bins = 20)
+    axs[0].axvline(np.nanmedian(verisense_acc.mag), color = "red", label = f"Median: {np.nanmedian(verisense_acc.mag):.3f}")
+    axs[0].axvline(np.nanmedian(verisense_acc.mag) + np.nanstd(verisense_acc.mag), color = "black", ls = "--", label = f"Std: {np.nanstd(verisense_acc.mag):.4f}")
+    axs[0].axvline(np.nanmedian(verisense_acc.mag) - np.nanstd(verisense_acc.mag), color = "black", ls = "--")
+
+    axs[1].axvline(np.nanmedian(axivity_acc.mag), color = "red", label = f"Median: {np.nanmedian(axivity_acc.mag):.3f}")
+    axs[1].axvline(np.nanmedian(axivity_acc.mag) + np.nanstd(axivity_acc.mag), color = "black", ls = "--", label = f"Std: {np.nanstd(axivity_acc.mag):.4f}")
+    axs[1].axvline(np.nanmedian(axivity_acc.mag) - np.nanstd(axivity_acc.mag), color = "black", ls = "--")
+
+    axs[0].set_xlabel("Magnitude (G)")
+    axs[0].set_ylabel("Count")
+    axs[1].set_xlabel("Magnitude (G)")
+    axs[1].set_ylabel("Count")
+    axs[0].legend()
+    axs[1].legend()
+    plt.show()
+    # verisense_acc = replace_gaps(verisense_acc, show_plot=True)
+    # outfile = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_longitudinal/verisense_acc.csv"
+    # verisense_acc.to_csv(outfile, index = False)
+    # return
     # compare_shimmer3_2025()
     # compare_imu_2025()
 
@@ -240,7 +365,7 @@ def main():
     # df = pd.read_csv("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity/axivity_acc.csv")
     # print(df.head(300), df.shape)
     # plt.plot(df.etime, df.mag)
-    # plt.plot(df2.etime, df2.mag)
+    # plt.plot(axivity_df.etime, axivity_df.mag)
     # plt.show()
 
     # axivity_in_folder = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/axivity"

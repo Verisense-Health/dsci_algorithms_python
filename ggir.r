@@ -83,9 +83,13 @@ C_axivity <- g.calibrate(datafile = "/Users/lselig/Desktop/verisense/codebase/ds
 )
 
 GGIR(mode=c(1,2,3,4,5),
-      datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean",
-      outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5",
-      studyname = "tmp2",
+      #datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_axivity_clean",
+     datadir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_retest",
+     
+     #outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_outputs_axivity_v5",
+     outputdir="/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_outputs/ggir_retest",
+     
+     studyname = "tmp2",
       rmc.dec=".",
       rmc.firstrow.acc = 1,
       rmc.col.acc = c(2, 3, 4),
@@ -105,6 +109,7 @@ GGIR(mode=c(1,2,3,4,5),
      minloadcrit = 24,
      printsummary = TRUE,
      overwrite = TRUE)
+
 
 GGIR(mode=c(1,2,3,4,5),
      datadir = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/GGIR/ggir_inputs/ggir_inputs_2025E_clean",
