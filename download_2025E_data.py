@@ -184,6 +184,7 @@ def combine_signal(user, device, signal, raw_data_dir, outfile, use_cache, after
     print(f"Combining {user}_{device}_{signal}")
     files_subset = []
     for f in files:
+        f = f.replace("\\", "/")
         file_date = datetime.strptime(f.split("/")[-1].split("_")[0], "%y%m%d")
         if(file_date < after):
             print("Skipping", f, "because it is before", after)
