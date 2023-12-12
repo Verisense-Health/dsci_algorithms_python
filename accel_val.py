@@ -18,6 +18,7 @@ USER = "LS2025E"
 DEVICE = "210202054E02"
 # DEVICE = "210202054DFB"
 SIGNALS = ["Accel"]
+# SIGNALS = ["Temperature"]
 COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
 Path(COMBINED_OUT_PATH).mkdir(parents=True, exist_ok=True)
 
@@ -302,17 +303,46 @@ def main():
 
 
     for signal in SIGNALS:
-        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-10-29")
+        download_signal(BUCKET, USER, DEVICE, signal, after = "2023-12-11")
+
+    big_acc = combine_signal(USER, DEVICE, signal = "Accel", outfile = "/Users/lselig/Desktop/ls_temp_acc.csv", use_cache = False, after = "2023-12-11")
+
+    fig, axs = plt.subplots(4, 1, figsize = (15, 9))
+    axs[0].plot(pd.to_datetime(big_acc.etime, unit = "s"), big_acc.mag)
+    axs[1].plot(pd.to_datetime(big_acc.etime, unit = "s"), big_acc.x)
+    axs[2].plot(pd.to_datetime(big_acc.etime, unit = "s"), big_acc.y)
+    axs[3].plot(pd.to_datetime(big_acc.etime, unit = "s"), big_acc.z)
+    plt.show()
+
+    # print(np.nanmedian(np.diff(big_temp.etime.values)))
+    # plt.hist(np.diff(big_temp.etime))
+    # plt.show()
+
+
 
     axivity_acc = parse_axivity("/Users/lselig/Desktop/orientations_vs_2025E.csv")
     verisense_out = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/LS2025E/210202054E02/verisense_acc_orientation.csv"
-    verisense_acc = combine_signal(USER, DEVICE, signal = "Accel", outfile = verisense_out, use_cache = False, after = "2023-10-29")
-    # verisense_acc = pd.read_csv(verisense_out)
+    # verisense_acc = combine_signal(USER, DEVICE, signal = "Accel", outfile = verisense_out, use_cache = False, after = "2023-10-29")
+    verisense_acc = pd.read_csv(verisense_out)
     # axivity_acc = parse_axivity("/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/axivity/LS/axivity_jcw_baseline.csv")
     start = axivity_acc.iloc[0].etime
     end = axivity_acc.iloc[-1].etime
     verisense_acc = verisense_acc[verisense_acc.etime.between(start, end)]
 
+    x_w = np.empty(verisense_acc.mag.shape)
+    x_w.fill(1 / verisense_acc.mag.shape[0])
+    y_w = np.empty(axivity_acc.mag.shape)
+    y_w.fill(1 / axivity_acc.mag.shape[0])
+    bins = np.linspace(0.80, 1.2, 10)
+
+    plt.hist([axivity_acc.mag.values, verisense_acc.mag.values], bins, weights = [y_w, x_w], label = ["Verisense", "Axivity"])
+    # plt.xlim(0.85, 1.15)
+    plt.axvline(np.nanmedian(verisense_acc.mag.values), ls = "--", lw = 2, label = f"Median Axivity: {np.nanmedian(verisense_acc.mag.values):.2f}\nStd Axivity: {np.nanstd(axivity_acc.mag.values):.2f}", color = "C1", zorder = 2)
+    plt.axvline(np.nanmedian(axivity_acc.mag.values), ls = "--", lw = 2, label = f"Median Verisense: {np.nanmedian(axivity_acc.mag.values):.2}\nStd Verisense: {np.nanstd(verisense_acc.mag.values):.2f}", color = "C0", zorder = 2)
+    plt.xlabel("Magnitude (g)")
+    plt.ylabel("%")
+    plt.legend()
+    plt.show()
     face_up = [1698673680, 1698673680 + 120 * 1]
     face_down = [1698673680 + 120 * 1 + 10, 1698673680 + 120 * 2]
     face_right = [1698673680 + 120 * 2 + 10, 1698673680 + 120 * 3]
@@ -323,6 +353,7 @@ def main():
     laps = [face_up, face_down, face_left, face_right, face_towards, face_away]
     labels = ["Face Up", "Face Down", "Face Left", "Face Right", "Face Towards", "Face Away"]
     compare_orientation(verisense_acc, axivity_acc, labels, laps)
+
 
     # axivity_acc = axivity_acc[axivity_acc.etime.between(start, end)]
     plt.plot(verisense_acc.etime, verisense_acc.mag, label = "Verisense")

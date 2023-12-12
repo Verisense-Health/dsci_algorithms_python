@@ -120,6 +120,7 @@ def parse_2025e(infile, signal):
         return -1
     return df
 def download_signal(bucket,
+                    raw_data_dir,
                     user,
                     device,
                     signal,
@@ -157,7 +158,7 @@ def download_signal(bucket,
 
     for obj in objects_with_substring:
         print("Object Key:", obj)
-        saveloc = Path(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}")
+        saveloc = Path(f"{raw_data_dir}/{user}/{device}/{signal}")
         if(not saveloc.exists()):
             Path(saveloc).mkdir(parents=True, exist_ok=True)
         if(not Path(f"{str(saveloc)}/{obj.split('/')[-1]}").exists()):
@@ -166,12 +167,14 @@ def download_signal(bucket,
         else:
             print(f"Already downloaded: {obj}")
 
-def combine_signal(user, device, signal, outfile, use_cache, after):
+def combine_signal(user, device, signal, raw_data_dir, outfile, use_cache, after):
+    folder = "/".join(outfile.split("/")[:-1])
+    if(not Path(folder).exists()):
+        Path(folder).mkdir(parents=True, exist_ok=True)
     after = datetime.strptime(after, "%Y-%m-%d")
     if(use_cache):
         return pd.read_csv(outfile)
-    # files = Path(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}").glob("*.csv")
-    files = glob.glob(f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{user}/{device}/{signal}/*.csv")
+    files = glob.glob(f"{raw_data_dir}/{user}/{device}/{signal}/*.csv")
     keep_dfs = []
     print(f"Combining {user}_{device}_{signal}")
     files_subset = []
@@ -182,6 +185,8 @@ def combine_signal(user, device, signal, outfile, use_cache, after):
             continue
         else:
             files_subset.append(f)
+    if(len(files_subset) == 0):
+        return f"No files found for: {signal}"
     with alive_bar(len(list(files_subset)), force_tty = True) as bar:
         for f in files_subset:
             ret = parse_2025e(f, signal)
@@ -194,11 +199,13 @@ def combine_signal(user, device, signal, outfile, use_cache, after):
     df.to_csv(outfile, index = False)
     return df
 
-
 def parse_steps(infile):
+
+
     df = pd.read_csv(infile, skiprows=8)
     df.columns = ["etime", "steps", "calories", "distance", "detail_step"]
     df = df.drop(["detail_step"], axis = 1)
+    df = df[1:]
     df["etime"] =  [parser.parse(x).timestamp() for x in df.etime]
     df = df.sort_values(by="etime")
     return df
@@ -210,7 +217,7 @@ def parse_spo2(infile):
     return df
 
 def parse_temperature(infile):
-    df = pd.read_csv(infile, skiprows=8)
+    df = pd.read_csv(infile, skiprows=9)
     df.columns = ["etime", "temperature"]
     df["etime"] =  [parser.parse(x).timestamp() for x in df.etime]
     df = df.sort_values(by="etime")
@@ -218,23 +225,20 @@ def parse_temperature(infile):
 
 
 if __name__ == "__main__":
-    # parse_temperature("/Users/lselig/Downloads/230917_231157_Temperature.csv")
-    # parse_spo2("/Users/lselig/Downloads/230917_231157_BloodOxygenLevel.csv")
-    # parse_heart_rate("/Users/lselig/Downloads/230917_212600_HeartRate.csv")
-    # parse_steps("/Users/lselig/Downloads/230917_213955_Step.csv")
     BUCKET = "verisense-cd1f868f-eada-44ac-b708-3b83f2aaed73"
     USER = "LS2025E"
     DEVICE = "210202054E02"
-    COMBINED_OUT_PATH = f"/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data/{USER}/{DEVICE}"
-    signals = ["HeartRate", "Temperature", "BloodOxygenLevel", "Step"]
-
-
-    df = parse_accel("/Users/lselig/Downloads/231005_045405_Accel.csv")
-    plt.ylabel("Time Diff (s)")
-    plt.xlabel("Sample Index")
-    plt.plot(np.diff(df.etime))
-    plt.show()
-
+    RAW_DATA_DIR = "/Users/lselig/Desktop/verisense/codebase/dsci_algorithms_python/data"
+    COMBINED_OUT_PATH = f"{RAW_DATA_DIR}/{USER}/{DEVICE}"
+    signals = ["Accel", "GreenPPG", "RedPPG", "HeartRate", "Temperature", "BloodOxygenLevel", "Step"]
+    AFTER = "2023-12-12"
     for signal in signals:
-        download_signal(BUCKET, USER, DEVICE, signal, "2021-02-02")
-        combine_signal(USER, DEVICE, signal=signal, outfile=f"{COMBINED_OUT_PATH}/verisense_{signal}.csv", use_cache=False, after="2023-08-01")
+        print(signal)
+        download_signal(BUCKET, RAW_DATA_DIR, USER, DEVICE, signal, AFTER)
+        combine_signal(USER,
+                       DEVICE,
+                       signal=signal,
+                       raw_data_dir = RAW_DATA_DIR,
+                       outfile=f"{COMBINED_OUT_PATH}/Parsed/verisense_{signal}.csv",
+                       use_cache=False,
+                       after = AFTER)

@@ -14,13 +14,17 @@ def compare_sleep(USER, DEVICE, verisense_sleep_df, axivity_sleep_df):
 
     tz_offset = 5
     sleep_df = pd.concat([verisense_sleep_df, axivity_sleep_df])
-    from sklearn.metrics import mean_absolute_error
+    from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
 
     print('ax v  onset')
-    print(mean_absolute_error(verisense_sleep_df.sleeponset.values, np.array([17.57, 20.64, 17.9])) * 60)
+    # print(mean_absolute_error(verisense_sleep_df.sleeponset.values, np.array([17.57, 20.64, 17.9])) * 60)
+    # print(mean_absolute_percentage_error(verisense_sleep_df.sleeponset.values, axivity_sleep_df.sleeponset.values) * 60)
+    # print(mean_absolute_percentage_error(verisense_sleep_df.wakeup.values, axivity_sleep_df.wakeup.values) * 60)
+    print(mean_absolute_percentage_error(axivity_sleep_df.sleeponset.values, np.array([17.57, 20.64, 17.9])))
+    print(mean_absolute_percentage_error(axivity_sleep_df.wakeup.values, np.array([25.0, 28.42, 25.39])))
 
-    print('v onset')
-    print(mean_absolute_error(verisense_sleep_df.wakeup.values, np.array([25.0, 28.42, 25.39])) * 60)
+    # print('v onset')
+    # print(mean_absolute_error(verisense_sleep_df.wakeup.values, np.array([25.0, 28.42, 25.39])) * 60)
 
     my_truth = pd.DataFrame({"night": [1, 2, 3],
                              "wakeup": [25.0, 28.42, 25.39],
@@ -60,13 +64,20 @@ def compare_activity_summary(USER, DEVICE, verisense_activity_df, axivity_activi
     verisense_activity_df["device"] = ["Verisense"] * len(verisense_activity_df)
     axivity_activity_df["device"] = ["Axivity"] * len(axivity_activity_df)
     big_acc = pd.concat([verisense_activity_df, axivity_activity_df])
-
+    big_acc = big_acc[big_acc.window_number != 1]
+    from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
     fig, axs = plt.subplots(1, 4, figsize = (15, 9))
+    # blue_bar = big_acc[""]
     axs = axs.flatten()
     for i, feature in enumerate(features):
+        print(feature, "mae", mean_absolute_error(big_acc[feature].values[:2], big_acc[feature].values[2:]))
+        print(feature, "mape", mean_absolute_percentage_error(big_acc[feature].values[:2], big_acc[feature].values[2:]))
+        # blue_bar = big_acc[big_acc.device == "Verisense"][feature].values
+        # orange_bar = big_acc[big_acc.device == "Axivity"][feature].values
         sns.barplot(big_acc, x="window_number", y=feature, hue="device", ax = axs[i])
         axs[i].set_xlabel("Day")
         axs[i].set_ylabel(labels[i])
+        axs[i].set_ylim(0, 800)
 
         # axs[i].plot(verisense_activity_df[feature], marker = "x", label = "Verisense")
         # axs[i].plot(axivity_activity_df[feature], marker = "x", label = "Axivity")
