@@ -18,8 +18,6 @@ load_dotenv()
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 
-# AWS_ACCESS_KEY = "AKIAR2C2O5V35DS42JAQ"
-# AWS_SECRET_KEY = "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"
 def read_line(infile, linei):
     with open(infile, "r") as f:
         for i, line in enumerate(f):
